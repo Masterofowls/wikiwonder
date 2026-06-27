@@ -8,8 +8,8 @@
   <p class="text-muted-foreground mb-6">Instant results across wiki pages, CMS pages, and shared links.</p>
   <form action="{% url 'wiki:search' %}" method="get" class="relative flex gap-2">
     <div class="relative flex-1">
-      <c-input type="search" name="q" x-model="query" value="{{ query }}" @input.debounce.200ms="fetchResults()" placeholder="Search wiki pages…" class="flex-1" autofocus autocomplete="off"></c-input>
-      <div x-show="open && results.length && query.length >= 2" x-cloak class="absolute top-full left-0 right-0 z-50 mt-1 rounded-lg border border-border bg-popover shadow-lg overflow-hidden">
+      <input type="search" name="q" x-model="query" value="{{ query }}" @input.debounce.200ms="fetchResults()" placeholder="Search wiki pages…" class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm flex-1" autofocus autocomplete="off">
+      <div x-show="open && query.trim().length >= 2" x-cloak class="absolute top-full left-0 right-0 z-50 mt-1 rounded-lg border border-border bg-popover shadow-lg overflow-hidden">
         <template x-for="item in results" :key="item.url">
           <a :href="item.url" class="flex flex-col gap-0.5 px-3 py-2 hover:bg-accent transition-colors border-b border-border/50 last:border-0">
             <span class="flex items-center gap-2 text-sm font-medium">

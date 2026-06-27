@@ -5,7 +5,13 @@ import bleach
 import markdown
 from django.utils.safestring import mark_safe
 
-from apps.wiki.services.embeds import process_embeds
+from apps.wiki.services.embeds import highlight_urls, process_embeds
+from apps.wiki.services.media_links import (
+    promote_bare_media_urls,
+    promote_media_links_markdown,
+    replace_media_anchors,
+    wrap_standalone_media_images,
+)
 
 ALLOWED_TAGS = bleach.sanitizer.ALLOWED_TAGS | {
     "h1", "h2", "h3", "h4", "h5", "h6",
@@ -18,7 +24,7 @@ ALLOWED_TAGS = bleach.sanitizer.ALLOWED_TAGS | {
 }
 ALLOWED_ATTRIBUTES = {
     **bleach.sanitizer.ALLOWED_ATTRIBUTES,
-    "a": ["href", "title", "rel", "class", "target"],
+    "a": ["href", "title", "rel", "class", "target", "data-url"],
     "img": ["src", "alt", "title", "width", "height", "loading", "class"],
     "code": ["class"],
     "pre": ["class"],
@@ -38,14 +44,27 @@ def render_markdown(text: str) -> str:
     """Convert markdown to sanitized HTML with embeds and URL highlights."""
     if not text:
         return ""
+    text = promote_media_links_markdown(text)
+    text = promote_bare_media_urls(text)
+    text = highlight_urls(text)
     text = process_embeds(text)
     html = markdown.markdown(
         text,
         extensions=["extra", "codehilite", "toc", "tables", "fenced_code", "nl2br"],
     )
+    html = replace_media_anchors(html)
+    html = wrap_standalone_media_images(html)
     html = re.sub(
         r'<a href="(https?://[^"]+)"',
-        r'<a class="wiki-url-highlight" href="\1" target="_blank" rel="noopener noreferrer"',
+        (
+            r'<a class="wiki-url-highlight wiki-ext-link" href="\1" '
+            r'target="_blank" rel="noopener noreferrer" data-url="\1"'
+        ),
+        html,
+    )
+    html = re.sub(
+        r'<a href="(/[^"]+)"',
+        r'<a class="wiki-url-highlight wiki-int-link" href="\1" data-url="\1"',
         html,
     )
     clean = bleach.clean(html, tags=ALLOWED_TAGS, attributes=ALLOWED_ATTRIBUTES)

@@ -15,8 +15,8 @@ Self-hosted Wikipedia with AI-powered import, CMS admin, PWA offline support, RS
 - **Responsive design** with Tailwind CSS
 - **REST API** for pages, bookmarks, import, and AI formatting
 - **Health checks** at `/health/`
-- **Docker + nginx + Let's Encrypt** ready
-- **Fly.io** deployment config included
+- **Docker + Varnish + nginx** — HTTP cache, TLS (Let's Encrypt), HTTP/3 (QUIC)
+- **Fly.io** deployment config included (edge TLS; no Varnish on Fly)
 
 ## Quick Start (Local)
 
@@ -57,27 +57,54 @@ Visit http://localhost:9000 — admin login: `admin` / `admin`
 
 ## Docker
 
+Stack: **Client → nginx (TLS, HTTP/3) → [Varnish Cache](https://www.varnish.org/) → Django**
+
 ```bash
-# Development stack (Postgres + Django + nginx)
+# Development (Postgres + Django + Varnish + nginx)
 docker compose up --build
 
-# App: http://localhost:9000
-# nginx: http://localhost:9080
+# Direct Django (bypass cache): http://localhost:9000
+# Through Varnish + nginx:      http://localhost:9080
+# HTTPS + HTTP/3 (after certs): https://localhost:9443
 ```
 
 Set `DATABASE_URL=postgres://wikiwonder:wikiwonder@db:5432/wikiwonder` in `.env` for Docker.
 
-### Let's Encrypt (Production)
+### Production: Let's Encrypt + HTTP/3
+
+Point DNS for your domain to the server, then:
 
 ```bash
-# Set your domain
-export DOMAIN=wiki.example.com
+# .env
+DOMAIN=wiki.example.com
+CERTBOT_EMAIL=you@example.com
+ALLOWED_HOSTS=wiki.example.com
+SITE_URL=https://wiki.example.com
+META_SITE_PROTOCOL=https
+META_SITE_DOMAIN=wiki.example.com
 
-# Start certbot profile
-docker compose --profile production run certbot certonly \
-  --webroot -w /var/www/certbot \
-  -d $DOMAIN --agree-tos -m you@example.com
+# Linux/macOS
+chmod +x scripts/certbot-init.sh
+./scripts/certbot-init.sh wiki.example.com you@example.com
+
+# Windows PowerShell
+.\scripts\certbot-init.ps1 -Domain wiki.example.com -Email you@example.com
+
+# Auto-renew (cron)
+0 3 * * * /path/to/wikiwonder/scripts/certbot-renew.sh
 ```
+
+Optional: run certbot renew loop in Docker:
+
+```bash
+docker compose --profile production up -d certbot-renew
+```
+
+**Verify HTTP/3:** `curl -I --http3-only https://wiki.example.com/` (requires curl with HTTP/3).
+
+**Varnish:** anonymous GET wiki pages are cached in memory; check `X-Cache: HIT|MISS` response headers. Config: `infra/varnish/default.vcl`.
+
+**Note:** [Fly.io production](https://wikiwonder.fly.dev) uses Fly's edge proxy (TLS/HTTP/2) directly to Gunicorn — use this Docker stack for VPS/self-hosted deployments.
 
 ## Fly.io Deployment
 
@@ -127,7 +154,11 @@ curl https://wikiwonder.fly.dev/health/
 | `/api/bookmarks/` | GET/POST | Required | User bookmarks |
 | `/api/import/preview/` | POST | Required | Preview text import |
 | `/api/import/create/` | POST | Required | Create page from text |
-| `/api/ai/format/` | POST | Required | AI markdown formatting |
+| `/api/ai/status/` | GET | None | Cerebras configured + model |
+| `/api/ai/format/` | POST | Required | Format text → markdown + title + summary |
+| `/api/ai/chat/` | POST | Required | Cerebras chat completion |
+| `/api/ai/chat/stream/` | POST | Required | Streaming chat (SSE) |
+| `/api/ai/suggest-title/` | POST | Required | Suggest wiki page title |
 | `/feeds/latest/` | GET | None | Atom RSS feed |
 | `/health/` | GET | None | Health check |
 

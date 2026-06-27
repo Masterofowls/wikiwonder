@@ -1,9 +1,11 @@
 from django.conf import settings
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.db.models import F, Sum
+from django.db.models import Count, F, Sum
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect
+from django.urls import reverse
 from django.utils import translation
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.generic import DetailView, ListView, TemplateView, View
 
 from apps.previews.services import preview_from_block
@@ -32,16 +34,17 @@ class HomeView(ListView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         published = WikiPage.objects.filter(status=WikiPage.Status.PUBLISHED)
+        agg = published.aggregate(pages=Count("id"), views=Sum("view_count"))
         ctx["featured"] = published.filter(is_featured=True).select_related("category")[:8]
-        ctx["trending"] = published.order_by("-view_count")[:8]
+        ctx["trending"] = published.order_by("-view_count").select_related("category")[:8]
         ctx["categories"] = Category.objects.filter(parent__isnull=True).prefetch_related("children")
         ctx["shared_links"] = SharedLink.objects.filter(is_featured=True)[:12]
         ctx["all_shared_links"] = SharedLink.objects.all()[:20]
         ctx["stats"] = {
-            "pages": published.count(),
+            "pages": agg["pages"] or 0,
             "categories": Category.objects.count(),
             "links": SharedLink.objects.count(),
-            "views": published.aggregate(total=Sum("view_count"))["total"] or 0,
+            "views": agg["views"] or 0,
         }
         ctx["seo"] = home_seo()
         return ctx
@@ -69,8 +72,16 @@ class PageDetailView(DetailView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx["rendered_content"] = render_markdown(self.object.content)
-        ctx["sections"] = self.object.sections.all()
+        sections = list(self.object.sections.all())
+        ctx["sections"] = sections
+        if sections:
+            ctx["rendered_sections"] = [
+                (section, render_markdown(section.content)) for section in sections
+            ]
+            ctx["rendered_content"] = ""
+        else:
+            ctx["rendered_sections"] = []
+            ctx["rendered_content"] = render_markdown(self.object.content)
         ctx["shared_links"] = self.object.shared_links.all()[:6]
         ctx["related_pages"] = (
             WikiPage.objects.filter(status=WikiPage.Status.PUBLISHED, category=self.object.category)
@@ -89,8 +100,14 @@ class PageDetailView(DetailView):
             preview_from_block(b) for b in self.object.content_blocks.all()
         ]
         ctx["hreflang_links"] = hreflang_links(self.request, self.object.get_absolute_url())
-        ctx["share_api_url"] = f"/api/pages/{self.object.slug}/share/"
+        ctx["share_api_url"] = reverse("page_share", kwargs={"slug": self.object.slug})
         ctx["django_meta"] = self.object.as_meta(request=self.request)
+        from apps.ai.quota import quota_status
+        from apps.ai.services import get_ai_service
+
+        ai = get_ai_service()
+        ctx["ai_configured"] = ai.is_configured
+        ctx["ai_quota"] = quota_status(self.request.user) if self.request.user.is_authenticated else None
         return ctx
 
 
@@ -101,6 +118,10 @@ class SetLanguageView(View):
         lang = request.POST.get("language", "")
         next_url = request.POST.get("next") or request.META.get("HTTP_REFERER") or "/"
         if lang in dict(settings.LANGUAGES):
+            if not url_has_allowed_host_and_scheme(
+                next_url, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+            ):
+                next_url = "/"
             translation.activate(lang)
             response = redirect(next_url)
             response.set_cookie(

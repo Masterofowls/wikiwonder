@@ -1,7 +1,10 @@
 """Tests for media blocks, previews, SEO, MCP, and import/export."""
 import json
+from pathlib import Path
 
 import pytest
+from django.conf import settings
+from django.test import override_settings
 from django.urls import reverse
 
 from apps.imports.export import export_page
@@ -10,6 +13,35 @@ from apps.seo.services import robots_txt_content, wiki_page_seo
 from apps.wiki.models import WikiPage
 from apps.wiki.services.embeds import process_embeds
 from apps.wiki.services.pages import create_page_from_markdown
+
+
+@pytest.mark.django_db
+class TestMediaServing:
+    @override_settings(SERVE_MEDIA=True)
+    def test_media_url_not_captured_by_cms(self, client, tmp_path):
+        media_root = Path(settings.MEDIA_ROOT)
+        media_root.mkdir(parents=True, exist_ok=True)
+        sample = media_root / "covers" / "sample.png"
+        sample.parent.mkdir(parents=True, exist_ok=True)
+        sample.write_bytes(b"\x89PNG\r\n\x1a\n")
+
+        response = client.get("/media/covers/sample.png")
+        assert response.status_code == 200
+        assert response["Content-Type"].startswith("image/")
+
+    @override_settings(SERVE_MEDIA=True)
+    def test_media_trailing_slash_redirects_to_file(self, client):
+        media_root = Path(settings.MEDIA_ROOT)
+        sample = media_root / "covers" / "slash.png"
+        sample.parent.mkdir(parents=True, exist_ok=True)
+        sample.write_bytes(b"\x89PNG\r\n\x1a\n")
+
+        response = client.get("/media/covers/slash.png/")
+        assert response.status_code == 301
+        assert response["Location"] == "/media/covers/slash.png"
+
+        served = client.get("/media/covers/slash.png")
+        assert served.status_code == 200
 
 
 @pytest.mark.django_db
@@ -27,6 +59,23 @@ class TestPreviews:
         md = '```wiki-video url="https://example.com/v.mp4" title="Clip"\n```'
         html = process_embeds(md)
         assert "wiki-media--video" in html
+
+    def test_media_link_renders_video(self):
+        from apps.wiki.services.markdown import render_markdown
+
+        md = "[My clip](/media/blocks/demo.mp4)"
+        html = render_markdown(md)
+        assert "wiki-media--video" in html
+        assert "<video" in html
+        assert 'wiki-url-highlight' not in html or "wiki-media--video" in html
+
+    def test_media_image_link_renders_img(self):
+        from apps.wiki.services.markdown import render_markdown
+
+        md = "[Photo](/media/editor/1/photo.png)"
+        html = render_markdown(md)
+        assert "<img" in html
+        assert "wiki-media" in html
 
 
 @pytest.mark.django_db

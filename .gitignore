@@ -49,3 +49,7 @@ htmlcov/
 *.pem
 *.key
 /.venv
+/.ruff_cache
+/.pytest_cache
+/.cursor
+/__pycache__

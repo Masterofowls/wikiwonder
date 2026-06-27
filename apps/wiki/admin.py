@@ -1,4 +1,6 @@
 from django.contrib import admin
+from django.http import HttpResponseRedirect
+from django.urls import reverse
 from django.utils.html import format_html
 from i18nfield.fields import I18nTextField
 from import_export import resources
@@ -15,6 +17,7 @@ from apps.wiki.models import (
     WikiSection,
 )
 from apps.wiki.services.link_preview import enrich_shared_link
+from apps.wiki.services.pages import sync_page_sections
 
 
 class WikiSectionInline(admin.TabularInline):
@@ -63,6 +66,7 @@ class WikiPageResource(resources.ModelResource):
 @admin.register(WikiPage)
 class WikiPageAdmin(TranslationAdmin, ImportExportModelAdmin):
     resource_class = WikiPageResource
+    change_form_template = "admin/wiki/wikipage/change_form.html"
     list_display = ("title", "status_badge", "category", "author", "view_count", "updated_at")
     list_filter = ("status", "category", "is_featured", "tags")
     search_fields = ("title", "content", "summary")
@@ -70,7 +74,7 @@ class WikiPageAdmin(TranslationAdmin, ImportExportModelAdmin):
     filter_horizontal = ("tags",)
     readonly_fields = ("view_count", "created_at", "updated_at", "preview_link")
     inlines = [WikiSectionInline, PageRevisionInline]
-    actions = ["publish_pages", "split_sections_action"]
+    actions = ["publish_pages", "ai_summarize_action", "split_sections_action"]
     fieldsets = (
         (None, {"fields": ("title", "slug", "status", "preview_link")}),
         ("Content", {"fields": ("summary", "content", "cover_image", "editorial_notes")}),
@@ -101,11 +105,47 @@ class WikiPageAdmin(TranslationAdmin, ImportExportModelAdmin):
             return db_field.formfield(**kwargs)
         return super().formfield_for_dbfield(db_field, request, **kwargs)
 
+    def save_model(self, request, obj, form, change):
+        if not obj.author_id:
+            obj.author = request.user
+        super().save_model(request, obj, form, change)
+        sync_page_sections(obj)
+
+    def save_related(self, request, form, formsets, change):
+        super().save_related(request, form, formsets, change)
+        sync_page_sections(form.instance)
+
+    def response_add(self, request, obj, post_url_continue=False):
+        if "_continue" not in request.POST and "_addanother" not in request.POST:
+            return HttpResponseRedirect(obj.get_absolute_url())
+        return super().response_add(request, obj, post_url_continue)
+
+    def response_change(self, request, obj):
+        if "_view" in request.POST:
+            return HttpResponseRedirect(obj.get_absolute_url())
+        return super().response_change(request, obj)
+
     @admin.action(description="Publish selected pages")
     def publish_pages(self, request, queryset):
         from django.utils import timezone
         updated = queryset.update(status=WikiPage.Status.PUBLISHED, published_at=timezone.now())
         self.message_user(request, f"{updated} page(s) published.")
+
+    @admin.action(description="Generate AI summary for selected pages")
+    def ai_summarize_action(self, request, queryset):
+        from apps.ai.page_context import page_markdown_text
+        from apps.ai.services import get_ai_service
+
+        ai = get_ai_service()
+        if not ai.is_configured:
+            self.message_user(request, "CEREBRAS_API_KEY is not configured.", level="error")
+            return
+        count = 0
+        for page in queryset:
+            page.summary = ai.generate_summary(page_markdown_text(page))[:500]
+            page.save(update_fields=["summary", "updated_at"])
+            count += 1
+        self.message_user(request, f"Generated AI summaries for {count} page(s).")
 
     @admin.action(description="Re-split sections from markdown")
     def split_sections_action(self, request, queryset):

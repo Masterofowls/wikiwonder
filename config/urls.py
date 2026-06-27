@@ -1,6 +1,5 @@
 """WikiWonder URL configuration."""
 from django.conf import settings
-from django.conf.urls.static import static
 from django.contrib import admin
 from django.contrib.sitemaps.views import sitemap
 from django.urls import include, path
@@ -9,6 +8,7 @@ from apps.seo.sitemaps import SharedLinkSitemap, WikiCategorySitemap
 from apps.seo.views import RobotsTxtView
 from apps.wiki.sitemaps import WikiPageSitemap
 from config.health import HealthView
+from config.media_urls import get_media_urlpatterns
 
 sitemaps = {
     "pages": WikiPageSitemap,
@@ -16,11 +16,15 @@ sitemaps = {
     "links": SharedLinkSitemap,
 }
 
+# Must precede CMS catch-all — otherwise django CMS treats /media/... as page slugs (301/404).
+media_urlpatterns = get_media_urlpatterns()
+
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("accounts/", include("allauth.urls")),
     path("health/", HealthView.as_view(), name="health"),
     path("robots.txt", RobotsTxtView.as_view(), name="robots"),
+    *media_urlpatterns,
     path("markdownx/", include("markdownx.urls")),
     path("", include("pwa.urls")),
     path("", include("apps.wiki.urls")),
@@ -41,9 +45,6 @@ urlpatterns = [
     # CMS pages — must remain last (catch-all routing)
     path("", include("cms.urls")),
 ]
-
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 admin.site.site_header = "WikiWonder Admin"
 admin.site.site_title = "WikiWonder"

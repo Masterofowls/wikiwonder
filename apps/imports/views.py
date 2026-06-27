@@ -44,8 +44,8 @@ def create_page(request):
         use_ai=use_ai,
         publish=publish,
     )
-    serializer = WikiPageDetailSerializer(page)
-    return Response(serializer.data, status=status.HTTP_201_CREATED)
+    data = WikiPageDetailSerializer(page, context={"request": request}).data
+    return Response(data, status=status.HTTP_201_CREATED)
 
 
 @api_view(["POST"])
@@ -59,16 +59,18 @@ def import_file(request):
     parsed = parse_uploaded_file(uploaded)
     title = request.data.get("title", "").strip() or parsed.get("title", "Imported page")
     publish = request.data.get("publish", False)
+    use_ai = request.data.get("use_ai", False)
 
     page = import_text_as_wiki_page(
         parsed.get("markdown", ""),
         title=title,
         author=request.user,
-        use_ai=False,
+        use_ai=use_ai,
         publish=publish,
     )
+    data = WikiPageDetailSerializer(page, context={"request": request}).data
     return Response({
-        **WikiPageDetailSerializer(page).data,
+        **data,
         "import_format": parsed.get("format"),
         "import_meta": {k: v for k, v in parsed.items() if k not in {"markdown"}},
     }, status=status.HTTP_201_CREATED)

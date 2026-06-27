@@ -59,11 +59,15 @@ URL_IN_TEXT = re.compile(r"(?<![\"'=])(https?://[^\s<>\"]+)")
 
 
 def highlight_urls(text: str) -> str:
-    """Wrap bare URLs in markdown source with highlight markup."""
+    """Turn bare URLs in markdown into clickable links before rendering."""
+    from apps.wiki.services.media_links import _wiki_embed, media_kind
 
     def repl(match: re.Match) -> str:
         url = match.group(1).rstrip(".,);]")
         suffix = match.group(1)[len(url) :]
-        return f'[`{url}`]({url}){{.wiki-url-highlight}}{suffix}'
+        kind = media_kind(url)
+        if kind:
+            return _wiki_embed(kind, url, url) + suffix
+        return f"[{url}]({url}){suffix}"
 
     return URL_IN_TEXT.sub(repl, text)

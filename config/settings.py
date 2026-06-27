@@ -82,6 +82,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "apps.wiki.middleware.PublicPageCacheMiddleware",
     "allauth.account.middleware.AccountMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
@@ -250,6 +251,8 @@ STORAGES = {
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+# Serve uploaded media on Fly/production (DEBUG uses django static helper too)
+SERVE_MEDIA = env.bool("SERVE_MEDIA", default=True)
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -298,23 +301,33 @@ ACCOUNT_LOGOUT_REDIRECT_URL = "/"
 # Cerebras AI
 CEREBRAS_API_KEY = env("CEREBRAS_API_KEY", default="")
 CEREBRAS_MODEL = env("CEREBRAS_MODEL", default="gpt-oss-120b")
+CEREBRAS_MAX_COMPLETION_TOKENS = env.int("CEREBRAS_MAX_COMPLETION_TOKENS", default=8192)
+CEREBRAS_TEMPERATURE = env.float("CEREBRAS_TEMPERATURE", default=0.2)
+CEREBRAS_TOP_P = env.float("CEREBRAS_TOP_P", default=1.0)
+CEREBRAS_REASONING_EFFORT = env("CEREBRAS_REASONING_EFFORT", default="medium")
+AI_DAILY_REQUEST_LIMIT = env.int("AI_DAILY_REQUEST_LIMIT", default=10)
 
 # REST Framework
 REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework.authentication.SessionAuthentication",
+    ],
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticatedOrReadOnly"],
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
 }
 
 # MarkdownX
-MARKDOWNX_MARKDOWNIFY_FUNCTION = "markdownx.utils.markdownify"
+MARKDOWNX_MARKDOWNIFY_FUNCTION = "apps.wiki.services.markdown.render_markdown"
 MARKDOWNX_MEDIA_PATH = "markdownx/"
-MARKDOWNX_UPLOAD_MAX_SIZE = 5 * 1024 * 1024  # 5 MB
+MARKDOWNX_UPLOAD_MAX_SIZE = 10 * 1024 * 1024  # 10 MB
 
 # Tailwind
 TAILWIND_APP_NAME = "theme"
 
-# PWA
+# PWA — django-pwa serves /serviceworker.js at scope / (do not register SW from app.js)
+PWA_SERVICE_WORKER_PATH = BASE_DIR / "static" / "js" / "sw.js"
+PWA_APP_DEBUG_MODE = DEBUG
 PWA_APP_NAME = env("PWA_APP_NAME", default="WikiWonder")
 PWA_APP_DESCRIPTION = env("PWA_APP_DESCRIPTION", default="Your personal Wikipedia")
 PWA_APP_THEME_COLOR = "#1e40af"

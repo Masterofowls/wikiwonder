@@ -1,0 +1,29 @@
+# HTTP — ACME challenges + redirect to HTTPS (production) or proxy (dev)
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name ${DOMAIN} _;
+    client_max_body_size 20M;
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+        allow all;
+    }
+
+    # Production: force HTTPS when certs exist (ssl.conf loaded separately)
+    location / {
+        if ($ssl_ready = 1) {
+            return 301 https://$host$request_uri;
+        }
+
+        proxy_pass http://varnish_backend;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Connection "";
+        proxy_read_timeout 120s;
+    }
+}

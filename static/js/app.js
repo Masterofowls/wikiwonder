@@ -2,15 +2,15 @@
 (function () {
   'use strict';
 
-  // Service worker
+  // Offline indicator — SW is registered by django-pwa at /serviceworker.js (scope /)
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/static/js/sw.js', { scope: '/' })
+      navigator.serviceWorker.ready
         .then(() => {
           const status = document.getElementById('offline-status');
           if (status) status.classList.remove('hidden');
         })
-        .catch((err) => console.warn('SW registration failed:', err));
+        .catch(() => {});
     });
   }
 
@@ -123,8 +123,8 @@
   window.addEventListener('offline', () => document.body.classList.add('is-offline'));
   window.addEventListener('online', () => document.body.classList.remove('is-offline'));
 
-  // Instant search typeahead (header)
-  document.addEventListener('alpine:init', () => {
+  // Instant search typeahead — must register before Alpine starts (app.js loads first)
+  function registerInstantSearch() {
     window.Alpine.data('instantSearch', (searchPageUrl = '/search/') => ({
       query: '',
       results: [],
@@ -139,14 +139,17 @@
         }
         try {
           const resp = await fetch(`/api/search/?q=${encodeURIComponent(q)}&limit=6`);
+          if (!resp.ok) throw new Error('Search failed');
           const data = await resp.json();
           this.results = data.results || [];
-          this.open = this.results.length > 0;
+          this.open = true;
         } catch (_) {
           this.results = [];
           this.open = false;
         }
       },
     }));
-  });
+  }
+
+  document.addEventListener('alpine:init', registerInstantSearch);
 })();

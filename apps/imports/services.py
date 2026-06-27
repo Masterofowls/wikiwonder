@@ -63,11 +63,13 @@ def import_text_as_wiki_page(
     split into sections, and create a wiki page.
     """
     service = get_ai_service()
+    enriched: dict = {}
 
     if use_ai and service.is_configured:
-        markdown = service.format_to_markdown(raw_text, title=title)
+        enriched = service.enrich_import(raw_text, title=title)
+        markdown = enriched["markdown"]
         if not title:
-            title = service.suggest_title(raw_text)
+            title = enriched["title"]
     else:
         markdown = plain_text_to_markdown(raw_text)
         if not title:
@@ -75,13 +77,17 @@ def import_text_as_wiki_page(
             title = first_line[:255]
 
     status = WikiPage.Status.PUBLISHED if publish else WikiPage.Status.DRAFT
-    return create_page_from_markdown(
+    page = create_page_from_markdown(
         title=title,
         content=markdown,
         author=author,
         status=status,
         split_sections=True,
     )
+    if use_ai and service.is_configured and enriched.get("summary"):
+        page.summary = enriched["summary"]
+        page.save(update_fields=["summary", "updated_at"])
+    return page
 
 
 def preview_import(raw_text: str, *, title: str = "", use_ai: bool = True) -> dict:

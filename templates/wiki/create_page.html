@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% load static wiki_tags %}
+
+{% block title %}New page — {{ SITE_NAME }}{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/easymde@2.18.0/dist/easymde.min.css">
+{% endblock %}
+
+{% block content %}
+<section class="notion-create fade-in-up">
+  <form method="post" enctype="multipart/form-data" id="create-wiki-form" class="notion-create-form">
+    {% csrf_token %}
+    <input type="hidden" name="raw_markdown" value="on">
+    <input type="hidden" name="publish" value="on">
+
+    <div id="cover-banner" class="notion-cover notion-cover--empty" aria-hidden="true">
+      <img id="cover-preview-img" class="notion-cover-img hidden" alt="">
+      <label for="cover_image" class="notion-cover-btn" id="cover-label">
+        {% lucide "image" size=16 %} Add cover
+      </label>
+      <input id="cover_image" name="cover_image" type="file" accept="image/*" class="sr-only">
+    </div>
+
+    <div class="notion-create-inner">
+      <nav aria-label="Breadcrumb" class="notion-breadcrumb">
+        <a href="{% url 'wiki:home' %}">Home</a>
+        <span>/</span>
+        <span>New page</span>
+      </nav>
+
+      <input id="title" name="title" type="text" maxlength="255"
+        class="notion-title-input"
+        placeholder="Untitled"
+        autocomplete="off">
+
+      <p class="notion-created-meta">
+        Created {% now "F j, Y" %} · saved automatically on publish
+      </p>
+
+      <div class="notion-editor-wrap">
+        <textarea id="content" name="content" rows="16"
+          placeholder="Start writing, or paste markdown…"></textarea>
+        <p id="paste-hint" class="notion-hint hidden" role="status">Content ready — add a title and save.</p>
+        <p id="upload-status" class="notion-hint hidden" role="status"></p>
+        <p class="notion-hint">Use the toolbar to upload images, video, or audio inline. You can also drag files into the editor or paste from clipboard.</p>
+      </div>
+
+      <input type="file" id="editor-image-input" accept="image/*,.gif,.webp" class="hidden" aria-hidden="true">
+      <input type="file" id="editor-video-input" accept="video/*" class="hidden" aria-hidden="true">
+      <input type="file" id="editor-audio-input" accept="audio/*" class="hidden" aria-hidden="true">
+
+      <details class="notion-advanced">
+        <summary>Advanced options</summary>
+        <div class="notion-advanced-body">
+          <div>
+            <label for="summary" class="text-sm font-medium">Summary</label>
+            <input id="summary" name="summary" type="text" maxlength="500"
+              class="notion-field-input"
+              placeholder="Optional preview text for cards and SEO">
+          </div>
+          <label class="inline-flex items-center gap-2 text-sm">
+            <input type="checkbox" name="use_ai" class="rounded border-input">
+            Format plain text with AI before saving
+          </label>
+          <div>
+            <label for="document" class="text-sm font-medium">Import document</label>
+            <input id="document" name="document" type="file"
+              accept=".md,.markdown,.txt,.pdf,.doc,.docx,.json,.csv,.xlsx,.html,.fb2"
+              class="mt-1 block w-full text-sm">
+          </div>
+          <div>
+            <label for="media_files" class="text-sm font-medium">Attach files on save</label>
+            <input id="media_files" name="media_files" type="file" multiple
+              accept="image/*,video/*,audio/*,.pdf,.md,.txt"
+              class="mt-1 block w-full text-sm">
+          </div>
+        </div>
+      </details>
+
+      <div class="notion-create-actions">
+        <c-button type="submit" class="btn-shimmer">Create page</c-button>
+        <c-button type="button" variant="secondary" size="sm" id="ai-format-btn"
+          {% if not ai_configured %}disabled{% endif %}>
+          {% lucide "sparkles" size=14 %} Format with AI
+        </c-button>
+        <a href="{% url 'wiki:home' %}"><c-button type="button" variant="outline">Cancel</c-button></a>
+      </div>
+      <p id="ai-status" class="notion-hint hidden" role="status"></p>
+    </div>
+  </form>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/easymde@2.18.0/dist/easymde.min.js"></script>
+<script>
+  window.WIKI_CREATE = { uploadUrl: "{% url 'wiki:editor_upload' %}" };
+</script>
+<script src="{% static 'js/create-wiki.js' %}"></script>
+{% endblock %}

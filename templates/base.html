@@ -18,8 +18,6 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400&display=swap" rel="stylesheet">
-  <link rel="manifest" href="{% url 'manifest' %}">
-  <link rel="apple-touch-icon" href="{% static 'icons/icon-192.png' %}">
   <link rel="stylesheet" href="{% static 'css/wiki.css' %}">
   <link rel="stylesheet" href="{% static 'css/media-blocks.css' %}">
   {% progressive_web_app_meta %}
@@ -31,7 +29,7 @@
   {% load cms_tags %}
   {% cms_toolbar %}
   <!-- Site header -->
-  <header class="sticky top-0 z-40 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+  <header id="site-header" class="sticky top-0 z-40 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
     <div class="container mx-auto flex h-16 max-w-7xl items-center gap-4 px-4 sm:px-6 lg:px-8">
       <a href="{% url 'wiki:home' %}" class="flex items-center gap-2 font-display font-semibold tracking-tight mr-2 transition-opacity hover:opacity-80">
         <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground text-sm font-bold transition-transform duration-300 hover:scale-105">W</span>
@@ -43,6 +41,7 @@
         {% include "wiki/partials/nav_link.html" with url="/" label="Home" %}
         {% include "wiki/partials/nav_link.html" with url="/search/" label="Search" %}
         {% if user.is_authenticated %}
+        {% include "wiki/partials/nav_link.html" with url="/wiki/new/" label="Create" %}
         {% include "wiki/partials/nav_link.html" with url="/bookmarks/" label="Bookmarks" %}
         {% include "wiki/partials/nav_link.html" with url="/admin/" label="Admin" %}
         <form method="post" action="{% url 'account_logout' %}" class="inline">
@@ -79,8 +78,11 @@
       <div class="hidden lg:block flex-1 max-w-sm relative" x-data="instantSearch('{% url 'wiki:search' %}')" @click.outside="open = false">
         <form action="{% url 'wiki:search' %}" method="get" class="flex items-center gap-2" @submit="if (!query.trim()) $event.preventDefault()">
           <div class="relative flex-1">
-            <c-input type="search" name="q" x-model="query" @input.debounce.200ms="fetchResults()" @focus="fetchResults()" placeholder="Search wiki…" class="h-9 w-full" aria-label="Search" autocomplete="off"></c-input>
-            <div x-show="open && results.length" x-cloak class="absolute top-full left-0 right-0 z-50 mt-1 rounded-lg border border-border bg-popover shadow-lg overflow-hidden">
+            <input type="search" name="q" x-model="query" @input.debounce.200ms="fetchResults()" @focus="fetchResults()" @keydown.escape="open = false" placeholder="Search wiki…" class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring" aria-label="Search" autocomplete="off">
+            <div x-show="open && query.trim().length >= 2" x-cloak class="absolute top-full left-0 right-0 z-50 mt-1 rounded-lg border border-border bg-popover shadow-lg overflow-hidden">
+              <template x-if="results.length === 0">
+                <p class="px-3 py-2 text-sm text-muted-foreground">No results found</p>
+              </template>
               <template x-for="item in results" :key="item.url">
                 <a :href="item.url" class="flex flex-col gap-0.5 px-3 py-2 hover:bg-accent transition-colors border-b border-border/50 last:border-0">
                   <span class="text-sm font-medium" x-text="item.title"></span>
@@ -117,6 +119,7 @@
               {% include "wiki/partials/nav_link.html" with url="/" label="Home" class="justify-start w-full" %}
               {% include "wiki/partials/nav_link.html" with url="/search/" label="Search" class="justify-start w-full" %}
               {% if user.is_authenticated %}
+              {% include "wiki/partials/nav_link.html" with url="/wiki/new/" label="Create" class="justify-start w-full" %}
               {% include "wiki/partials/nav_link.html" with url="/bookmarks/" label="Bookmarks" class="justify-start w-full" %}
               {% include "wiki/partials/nav_link.html" with url="/admin/" label="Admin" class="justify-start w-full" %}
               {% else %}
@@ -125,8 +128,15 @@
               {% endif %}
               {% include "wiki/partials/nav_link.html" with url="/feeds/latest/" label="RSS Feed" class="justify-start w-full" %}
             </nav>
-            <form action="{% url 'wiki:search' %}" method="get" class="mt-6 flex flex-col gap-2">
-              <c-input type="search" name="q" placeholder="Search…"></c-input>
+            <form action="{% url 'wiki:search' %}" method="get" class="mt-6 flex flex-col gap-2" x-data="instantSearch('{% url 'wiki:search' %}')" @click.outside="open = false">
+              <div class="relative">
+                <input type="search" name="q" x-model="query" @input.debounce.200ms="fetchResults()" @focus="fetchResults()" placeholder="Search…" class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm" autocomplete="off">
+                <div x-show="open && query.trim().length >= 2" x-cloak class="absolute top-full left-0 right-0 z-50 mt-1 rounded-lg border border-border bg-popover shadow-lg overflow-hidden max-h-64 overflow-y-auto">
+                  <template x-for="item in results" :key="item.url">
+                    <a :href="item.url" class="block px-3 py-2 text-sm hover:bg-accent border-b border-border/50 last:border-0" x-text="item.title"></a>
+                  </template>
+                </div>
+              </div>
               <c-button type="submit" class="w-full">Search</c-button>
             </form>
           </c-sheet.content>
@@ -155,7 +165,7 @@
 
   {% include "wiki/partials/cookie_consent.html" %}
 
-  <footer class="border-t border-border mt-auto">
+  <footer id="site-footer" class="border-t border-border mt-auto">
     <div class="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 flex flex-col sm:flex-row justify-between items-center gap-4 text-sm text-muted-foreground">
       <p>&copy; {% now "Y" %} {{ SITE_NAME }}</p>
       <div class="flex items-center gap-4">
@@ -166,11 +176,11 @@
     </div>
   </footer>
 
+  <script defer src="{% static 'js/app.js' %}"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.9/dist/cdn.min.js"></script>
-  <script src="{% static 'js/app.js' %}"></script>
-  <script src="{% static 'js/share.js' %}"></script>
-  <script src="{% static 'js/media-blocks.js' %}"></script>
+  <script defer src="{% static 'js/share.js' %}"></script>
   {% render_block "js" %}
   {% block extra_js %}{% endblock %}
+  <script defer src="{% static 'js/media-blocks.js' %}"></script>
 </body>
 </html>

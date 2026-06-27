@@ -7,3 +7,10 @@ DATABASES = {
         "NAME": ":memory:",
     }
 }
+
+STORAGES = {
+    **STORAGES,  # noqa: F405
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+}

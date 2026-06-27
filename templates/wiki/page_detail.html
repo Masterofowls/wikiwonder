@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load wiki_tags humanize seo_tags %}
+{% load wiki_tags humanize seo_tags static %}
 
 {% block title %}{{ page.title }} — {{ SITE_NAME }}{% endblock %}
 {% block meta_description %}{{ page.summary|default:page.title }}{% endblock %}
@@ -15,118 +15,116 @@
 {% endblock %}
 
 {% block content %}
-<!-- Breadcrumb -->
-<nav aria-label="Breadcrumb" class="flex items-center gap-1 text-sm text-muted-foreground mb-6">
-  <a href="{% url 'wiki:home' %}" class="hover:text-foreground transition-colors">Home</a>
-  <span>/</span>
-  {% if page.category %}
-  <a href="{% url 'wiki:category' page.category.slug %}" class="hover:text-foreground transition-colors">{{ page.category.name }}</a>
-  <span>/</span>
-  {% endif %}
-  <span class="text-foreground font-medium truncate">{{ page.title }}</span>
-</nav>
-
-<article class="wiki-page" data-page-slug="{{ page.slug }}">
-  <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-8">
-    <div class="flex-1 min-w-0">
-      <h1 class="text-3xl sm:text-4xl font-bold tracking-tight mb-2">{{ page.title }}</h1>
-      {% if page.summary %}
-      <p class="text-lg text-muted-foreground">{{ page.summary }}</p>
-      {% endif %}
-      <div class="mt-4 flex flex-wrap items-center gap-2">
-        {% if page.category %}
-        <a href="{% url 'wiki:category' page.category.slug %}">
-          <c-badge variant="secondary">{{ page.category.name }}</c-badge>
-        </a>
-        {% endif %}
-        {% for tag in page.tags.all %}
-        <c-badge variant="outline">{{ tag.name }}</c-badge>
-        {% endfor %}
-        <span class="text-sm text-muted-foreground">Updated {{ page.updated_at|date:"M j, Y" }} · {{ page.view_count }} views</span>
-      </div>
-    </div>
-    <div class="flex flex-col sm:flex-row gap-2 shrink-0">
-      {% include "wiki/partials/page_actions.html" %}
-      {% if user.is_authenticated %}
-      <form method="post" action="{% url 'wiki:toggle_bookmark' page.slug %}">
-        {% csrf_token %}
-        <c-button type="submit" variant="{% if is_bookmarked %}secondary{% else %}outline{% endif %}">
-          {% if is_bookmarked %}★ Bookmarked{% else %}☆ Bookmark{% endif %}
-        </c-button>
-      </form>
-      {% endif %}
-    </div>
+<article class="notion-page wiki-page fade-in-up" data-page-slug="{{ page.slug }}">
+  {% if page.cover_image %}
+  <div class="notion-cover notion-cover--filled">
+    <img src="{{ page.cover_image.url }}" alt="" class="notion-cover-img">
   </div>
+  {% endif %}
 
-  <div class="flex flex-col lg:flex-row gap-6">
-    {% if sections %}
-    <aside class="lg:w-72 shrink-0">
-      <c-card class="sticky top-20">
-        <c-card.header class="pb-3">
-          <c-card.title class="text-sm font-medium uppercase tracking-wide text-muted-foreground">Contents</c-card.title>
-        </c-card.header>
-        <c-card.content class="pt-0">
-          <nav aria-label="Table of contents">
-            <ol class="space-y-1 text-sm">
-              {% for section in sections %}
-              <li>
-                <a href="#{{ section.anchor }}"
-                  class="block py-1.5 px-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
-                  {{ section.title }}
-                </a>
-              </li>
-              {% endfor %}
-            </ol>
-          </nav>
-        </c-card.content>
-      </c-card>
-    </aside>
-    {% endif %}
+  <div class="notion-page-shell">
+    <nav aria-label="Breadcrumb" class="notion-breadcrumb mb-4">
+      <a href="{% url 'wiki:home' %}">Home</a>
+      <span>/</span>
+      {% if page.category %}
+      <a href="{% url 'wiki:category' page.category.slug %}">{{ page.category.name }}</a>
+      <span>/</span>
+      {% endif %}
+      <span>{{ page.title }}</span>
+    </nav>
 
-    <div class="flex-1 min-w-0 space-y-6">
-      {% if content_blocks %}
-      <section class="space-y-4" aria-label="Media and documents">
-        {% for block in content_blocks %}
-        <div class="wiki-block wiki-block--{{ block.type }}" data-block-id="{{ block.id }}">
-          {{ block.html|safe }}
-          {% if block.annotations %}
-          <ul class="wiki-annotations mt-2 space-y-1 text-sm text-muted-foreground">
-            {% for note in block.annotations %}
-            <li><strong>{{ note.label }}</strong> {{ note.body }}</li>
-            {% endfor %}
-          </ul>
+    <header class="notion-page-header">
+      <div class="notion-page-header-main">
+        <h1 class="notion-page-title">{{ page.title }}</h1>
+        {% if page.summary %}
+        <p class="notion-page-summary">{{ page.summary }}</p>
+        {% endif %}
+        <div class="notion-page-meta">
+          <span>Created {{ page.created_at|date:"F j, Y" }}</span>
+          {% if page.author %}
+          <span>· {{ page.author.get_full_name|default:page.author.username }}</span>
           {% endif %}
+          <span>· Updated {{ page.updated_at|naturaltime }}</span>
+          <span>· {{ page.view_count }} views</span>
         </div>
-        {% endfor %}
-      </section>
-      {% endif %}
+        <div class="notion-page-tags">
+          {% if page.category %}
+          <a href="{% url 'wiki:category' page.category.slug %}">
+            <c-badge variant="secondary">{{ page.category.name }}</c-badge>
+          </a>
+          {% endif %}
+          {% for tag in page.tags.all %}
+          <c-badge variant="outline">{{ tag.name }}</c-badge>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="notion-page-actions">
+        {% include "wiki/partials/page_actions.html" %}
+        {% if user.is_authenticated %}
+        <form method="post" action="{% url 'wiki:toggle_bookmark' page.slug %}" data-bookmark-form>
+          {% csrf_token %}
+          <c-button type="submit" variant="{% if is_bookmarked %}secondary{% else %}outline{% endif %}" size="sm">
+            {% if is_bookmarked %}★ Bookmarked{% else %}☆ Bookmark{% endif %}
+          </c-button>
+        </form>
+        {% endif %}
+      </div>
+    </header>
+
+    <div class="notion-page-layout">
       {% if sections %}
-      {% for section in sections %}
-      <c-card id="{{ section.anchor }}" class="scroll-mt-24">
-        <c-card.header>
-          <c-card.title>{{ section.title }}</c-card.title>
-        </c-card.header>
-        <c-card.content>
-          <div class="prose max-w-none wiki-content">
-            {{ section.content|render_md }}
-          </div>
-        </c-card.content>
-      </c-card>
-      {% endfor %}
-      {% else %}
-      <c-card>
-        <c-card.content class="pt-6">
-          <div class="prose max-w-none wiki-content">
-            {{ rendered_content }}
-          </div>
-        </c-card.content>
-      </c-card>
+      <aside class="notion-toc">
+        <p class="notion-toc-label">On this page</p>
+        <nav aria-label="Table of contents">
+          <ol>
+            {% for section in sections %}
+            <li>
+              <a href="#{{ section.anchor }}">{{ section.title }}</a>
+            </li>
+            {% endfor %}
+          </ol>
+        </nav>
+      </aside>
       {% endif %}
+
+      <div class="notion-page-body">
+        {% if content_blocks %}
+        <section class="notion-media-blocks" aria-label="Media and documents">
+          {% for block in content_blocks %}
+          <div class="wiki-block wiki-block--{{ block.type }}" data-block-id="{{ block.id }}">
+            {{ block.html|safe }}
+            {% if block.annotations %}
+            <ul class="wiki-annotations mt-2 space-y-1 text-sm text-muted-foreground">
+              {% for note in block.annotations %}
+              <li><strong>{{ note.label }}</strong> {{ note.body }}</li>
+              {% endfor %}
+            </ul>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </section>
+        {% endif %}
+
+        {% if sections %}
+        {% for section, html in rendered_sections %}
+        <section id="{{ section.anchor }}" class="notion-section scroll-mt-24">
+          <h2 class="notion-section-title">{{ section.title }}</h2>
+          <div class="prose notion-prose wiki-content">
+            {{ html }}
+          </div>
+        </section>
+        {% endfor %}
+        {% else %}
+        <div class="prose notion-prose wiki-content">
+          {{ rendered_content }}
+        </div>
+        {% endif %}
+      </div>
     </div>
   </div>
 
   {% if related_pages %}
-  <section class="mt-12 fade-in-up">
+  <section class="notion-related mt-16">
     <h2 class="text-xl font-display font-semibold mb-4 flex items-center gap-2">
       {% lucide "layers" size=20 css_class="text-primary" %} Related pages
     </h2>
@@ -143,7 +141,7 @@
   {% endif %}
 
   {% if shared_links %}
-  <section class="mt-10 fade-in-up">
+  <section class="notion-related mt-12">
     <h2 class="text-xl font-display font-semibold mb-4 flex items-center gap-2">
       {% lucide "link" size=20 css_class="text-primary icon-pulse" %} Related links
     </h2>
@@ -155,4 +153,11 @@
   </section>
   {% endif %}
 </article>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/wiki-links.js' %}" defer></script>
+{% if ai_configured %}
+<script src="{% static 'js/wiki-ai.js' %}" defer></script>
+{% endif %}
 {% endblock %}

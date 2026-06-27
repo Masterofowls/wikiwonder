@@ -39,13 +39,25 @@ class WikiPageListSerializer(serializers.ModelSerializer):
 class WikiPageDetailSerializer(serializers.ModelSerializer):
     sections = WikiSectionSerializer(many=True, read_only=True)
     tags = TagSerializer(many=True, read_only=True)
+    url = serializers.SerializerMethodField()
+    path = serializers.SerializerMethodField()
 
     class Meta:
         model = WikiPage
         fields = [
             "id", "title", "slug", "summary", "content", "status", "category",
             "tags", "sections", "is_featured", "view_count", "created_at", "updated_at",
+            "url", "path",
         ]
+
+    def get_url(self, obj):
+        request = self.context.get("request")
+        if request:
+            return request.build_absolute_uri(obj.get_absolute_url())
+        return obj.get_absolute_url()
+
+    def get_path(self, obj):
+        return obj.get_absolute_url()
 
 
 class WikiPageViewSet(viewsets.ModelViewSet):
@@ -61,9 +73,21 @@ class WikiPageViewSet(viewsets.ModelViewSet):
         return qs
 
     def get_serializer_class(self):
-        if self.action == "retrieve":
+        if self.action in ("retrieve", "create", "update", "partial_update"):
             return WikiPageDetailSerializer
         return WikiPageListSerializer
+
+    def perform_create(self, serializer):
+        from apps.wiki.services.pages import sync_page_sections
+
+        page = serializer.save(author=self.request.user)
+        sync_page_sections(page)
+
+    def perform_update(self, serializer):
+        from apps.wiki.services.pages import sync_page_sections
+
+        page = serializer.save()
+        sync_page_sections(page)
 
     @action(detail=True, methods=["get"])
     def preview(self, request, slug=None):
