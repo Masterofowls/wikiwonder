@@ -30,3 +30,4 @@
 - Fixed media/images 404 on production: register `/media/` URL patterns before django CMS catch-all (CMS was treating media paths as page slugs → 301 redirect loop / 404)
 - Fixed production media serving when DEBUG=False (Django static() helper is debug-only); custom serve view with trailing-slash normalization for cached CMS redirects
 - Wiki create editor: dedicated Upload image toolbar button (parity with video/audio); inserts `![title](/media/editor/...)` markdown inline; drag-drop and paste still supported
+- Fixed mobile navigation: teleport sheet menu to body (header backdrop-filter broke overlay); full-width nav links, complete menu items, language + search sections

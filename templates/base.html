@@ -102,36 +102,59 @@
         <span x-show="dark" x-cloak>{% lucide "moon" size=18 animate="pulse" %}</span>
       </c-button>
 
-      <!-- Mobile menu sheet -->
-      <div class="md:hidden" x-data>
+      <!-- Mobile menu -->
+      <div class="md:hidden shrink-0">
         <c-sheet>
           <c-sheet.trigger>
             <c-button variant="ghost" size="icon" aria-label="Open menu">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
             </c-button>
           </c-sheet.trigger>
           <c-sheet.content side="right">
-            <c-sheet.header>
-              <c-sheet.title>Menu</c-sheet.title>
-              <c-sheet.description>Navigate {{ SITE_NAME }}</c-sheet.description>
+            <c-sheet.header class="text-left space-y-1 pb-4 border-b border-border">
+              <c-sheet.title>{{ SITE_NAME }}</c-sheet.title>
+              <c-sheet.description>Navigation</c-sheet.description>
             </c-sheet.header>
-            <nav class="flex flex-col gap-1 mt-4">
-              {% include "wiki/partials/nav_link.html" with url="/" label="Home" class="justify-start w-full" %}
-              {% include "wiki/partials/nav_link.html" with url="/search/" label="Search" class="justify-start w-full" %}
+            <nav class="mobile-nav" aria-label="Mobile navigation" @click="if ($event.target.closest('a')) hideSheet()">
+              {% include "wiki/partials/nav_link.html" with url="/" label="Home" block=1 %}
+              {% include "wiki/partials/nav_link.html" with url="/search/" label="Search" block=1 %}
               {% if user.is_authenticated %}
-              {% include "wiki/partials/nav_link.html" with url="/wiki/new/" label="Create" class="justify-start w-full" %}
-              {% include "wiki/partials/nav_link.html" with url="/bookmarks/" label="Bookmarks" class="justify-start w-full" %}
-              {% include "wiki/partials/nav_link.html" with url="/admin/" label="Admin" class="justify-start w-full" %}
+              {% include "wiki/partials/nav_link.html" with url="/wiki/new/" label="Create page" block=1 %}
+              {% include "wiki/partials/nav_link.html" with url="/bookmarks/" label="Bookmarks" block=1 %}
+              {% include "wiki/partials/nav_link.html" with url="/admin/" label="Admin" block=1 %}
               {% else %}
-              {% include "wiki/partials/nav_link.html" with url="/accounts/login/" label="Sign in" class="justify-start w-full" %}
-              {% include "wiki/partials/nav_link.html" with url="/accounts/signup/" label="Sign up" class="justify-start w-full" %}
+              {% include "wiki/partials/nav_link.html" with url="/accounts/login/" label="Sign in" block=1 %}
+              {% include "wiki/partials/nav_link.html" with url="/accounts/signup/" label="Sign up" block=1 %}
               {% endif %}
-              {% include "wiki/partials/nav_link.html" with url="/feeds/latest/" label="RSS Feed" class="justify-start w-full" %}
+              {% include "wiki/partials/nav_link.html" with url="/links/" label="Links" block=1 %}
+              {% include "wiki/partials/nav_link.html" with url="/feeds/latest/" label="RSS feed" block=1 %}
+              {% if user.is_authenticated %}
+              <form method="post" action="{% url 'account_logout' %}" class="mt-1">
+                {% csrf_token %}
+                <button type="submit" class="mobile-nav-link w-full text-left text-destructive hover:bg-destructive/10 hover:text-destructive">
+                  Sign out
+                </button>
+              </form>
+              {% endif %}
             </nav>
-            <form action="{% url 'wiki:search' %}" method="get" class="mt-6 flex flex-col gap-2" x-data="instantSearch('{% url 'wiki:search' %}')" @click.outside="open = false">
+            {% if AVAILABLE_LANGUAGES|length > 1 %}
+            <form method="post" action="{% url 'wiki:set_language' %}" class="mobile-nav-lang mt-6 pt-4 border-t border-border">
+              {% csrf_token %}
+              <input type="hidden" name="next" value="{{ request.get_full_path }}">
+              <label for="lang-select-mobile" class="text-xs font-medium text-muted-foreground">Language</label>
+              <select id="lang-select-mobile" name="language" onchange="this.form.submit()"
+                class="mt-1.5 h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                {% for code, name in AVAILABLE_LANGUAGES %}
+                <option value="{{ code }}" {% if code == CURRENT_LANGUAGE %}selected{% endif %}>{{ name }}</option>
+                {% endfor %}
+              </select>
+            </form>
+            {% endif %}
+            <form action="{% url 'wiki:search' %}" method="get" class="mobile-nav-search mt-6 pt-4 border-t border-border flex flex-col gap-2" x-data="instantSearch('{% url 'wiki:search' %}')" @click.outside="open = false">
+              <label for="mobile-search" class="text-xs font-medium text-muted-foreground">Search wiki</label>
               <div class="relative">
-                <input type="search" name="q" x-model="query" @input.debounce.200ms="fetchResults()" @focus="fetchResults()" placeholder="Search…" class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm" autocomplete="off">
-                <div x-show="open && query.trim().length >= 2" x-cloak class="absolute top-full left-0 right-0 z-50 mt-1 rounded-lg border border-border bg-popover shadow-lg overflow-hidden max-h-64 overflow-y-auto">
+                <input id="mobile-search" type="search" name="q" x-model="query" @input.debounce.200ms="fetchResults()" @focus="fetchResults()" placeholder="Search…" class="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm" autocomplete="off">
+                <div x-show="open && query.trim().length >= 2" x-cloak class="absolute top-full left-0 right-0 z-50 mt-1 rounded-lg border border-border bg-popover shadow-lg overflow-hidden max-h-48 overflow-y-auto">
                   <template x-for="item in results" :key="item.url">
                     <a :href="item.url" class="block px-3 py-2 text-sm hover:bg-accent border-b border-border/50 last:border-0" x-text="item.title"></a>
                   </template>

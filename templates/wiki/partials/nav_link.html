@@ -1,4 +1,4 @@
 <a href="{{ url }}"
-  class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors h-9 px-3 hover:bg-accent hover:text-accent-foreground {{ class }}">
+  class="{% if block %}mobile-nav-link{% else %}inline-flex h-9 px-3 justify-center whitespace-nowrap{% endif %} items-center gap-2 rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground {{ class }}">
   {{ label }}
 </a>

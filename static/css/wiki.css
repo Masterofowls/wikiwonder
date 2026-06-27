@@ -150,6 +150,36 @@ html { scroll-behavior: smooth; }
 }
 [x-cloak] { display: none !important; }
 
+/* Mobile navigation drawer */
+.mobile-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  margin-top: 0.75rem;
+}
+.mobile-nav-link {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.625rem 0.75rem;
+  border-radius: var(--radius-md);
+  text-align: left;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--foreground);
+  transition: background-color 0.15s, color 0.15s;
+}
+.mobile-nav-link:hover,
+.mobile-nav-link:focus-visible {
+  background: var(--accent);
+  color: var(--accent-foreground);
+  outline: none;
+}
+#site-header .container {
+  min-width: 0;
+}
+
 #preview-tooltip, #link-preview-tooltip {
   position: fixed;
   z-index: 100;
