@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+{% load humanize wiki_tags %}
+
+{% block title %}{{ SITE_NAME }} — Home{% endblock %}
+
+{% block content %}
+<!-- Hero -->
+<section class="hero-gradient rounded-xl border border-border p-8 sm:p-12 mb-8 fade-in-up">
+  <div class="max-w-2xl">
+    <c-badge variant="secondary" class="mb-4">
+      {% lucide "sparkles" size=14 animate="pulse" %} Knowledge Base
+    </c-badge>
+    <h1 class="text-3xl sm:text-5xl font-display font-bold tracking-tight mb-3">{{ SITE_NAME }}</h1>
+    <p class="text-lg text-muted-foreground mb-6">
+      Browse wiki pages, shared links with live previews, and AI-powered imports — all in one place.
+    </p>
+    <div class="flex flex-wrap gap-3">
+      <a href="{% url 'wiki:search' %}" class="btn-shimmer inline-flex items-center gap-2 h-10 px-8 rounded-md text-sm font-medium bg-primary text-primary-foreground shadow hover:bg-primary/90 transition-all duration-300">
+        {% lucide "search" size=16 %} Explore pages
+      </a>
+      <a href="{% url 'wiki:shared_links' %}" class="inline-flex items-center gap-2 h-10 px-8 rounded-md text-sm font-medium border border-input bg-background shadow-xs hover:bg-accent transition-all duration-300">
+        {% lucide "share-2" size=16 %} Shared links
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- Stats -->
+<section class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10 fade-in-up stagger-1">
+  <c-card class="stat-card transition-all duration-300 hover:shadow-md">
+    <c-card.content class="pt-6 flex items-center gap-4">
+      <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+        {% lucide "file-text" size=20 animate="pulse" %}
+      </div>
+      <div>
+        <p class="text-2xl font-display font-bold">{{ stats.pages }}</p>
+        <p class="text-xs text-muted-foreground">Wiki pages</p>
+      </div>
+    </c-card.content>
+  </c-card>
+  <c-card class="stat-card transition-all duration-300 hover:shadow-md">
+    <c-card.content class="pt-6 flex items-center gap-4">
+      <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+        {% lucide "layers" size=20 animate="pulse" %}
+      </div>
+      <div>
+        <p class="text-2xl font-display font-bold">{{ stats.categories }}</p>
+        <p class="text-xs text-muted-foreground">Categories</p>
+      </div>
+    </c-card.content>
+  </c-card>
+  <c-card class="stat-card transition-all duration-300 hover:shadow-md">
+    <c-card.content class="pt-6 flex items-center gap-4">
+      <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+        {% lucide "link" size=20 animate="bounce" %}
+      </div>
+      <div>
+        <p class="text-2xl font-display font-bold">{{ stats.links }}</p>
+        <p class="text-xs text-muted-foreground">Shared links</p>
+      </div>
+    </c-card.content>
+  </c-card>
+  <c-card class="stat-card transition-all duration-300 hover:shadow-md">
+    <c-card.content class="pt-6 flex items-center gap-4">
+      <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+        {% lucide "trending-up" size=20 animate="pulse" %}
+      </div>
+      <div>
+        <p class="text-2xl font-display font-bold">{{ stats.views }}</p>
+        <p class="text-xs text-muted-foreground">Total views</p>
+      </div>
+    </c-card.content>
+  </c-card>
+</section>
+
+<!-- Tabbed content -->
+<c-tabs default_value="explore" class="fade-in-up stagger-2">
+  <c-tabs.list class="inline-flex h-10 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground w-full sm:w-auto mb-6">
+    <c-tabs.trigger value="explore">{% lucide "book-open" size=14 %} Explore</c-tabs.trigger>
+    <c-tabs.trigger value="featured">{% lucide "sparkles" size=14 %} Featured</c-tabs.trigger>
+    <c-tabs.trigger value="trending">{% lucide "trending-up" size=14 %} Trending</c-tabs.trigger>
+    <c-tabs.trigger value="links">{% lucide "link" size=14 %} Shared Links</c-tabs.trigger>
+    <c-tabs.trigger value="categories">{% lucide "layers" size=14 %} Categories</c-tabs.trigger>
+  </c-tabs.list>
+
+  <!-- Explore tab -->
+  <c-tabs.content value="explore" class="mt-0">
+    {% if pages %}
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      {% for page in pages %}
+      {% include "wiki/partials/image_card.html" with page=page %}
+      {% endfor %}
+    </div>
+    {% if page_obj.has_other_pages %}
+    <nav class="mt-8 flex justify-center items-center gap-2">
+      {% if page_obj.has_previous %}
+      <a href="?page={{ page_obj.previous_page_number }}"><c-button variant="outline" size="sm">Previous</c-button></a>
+      {% endif %}
+      <span class="text-sm text-muted-foreground px-3">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+      {% if page_obj.has_next %}
+      <a href="?page={{ page_obj.next_page_number }}"><c-button variant="outline" size="sm">Next</c-button></a>
+      {% endif %}
+    </nav>
+    {% endif %}
+    {% else %}
+    <c-alert><c-alert.title>No pages yet</c-alert.title><c-alert.description>Create your first page in admin.</c-alert.description></c-alert>
+    {% endif %}
+  </c-tabs.content>
+
+  <!-- Featured scroller -->
+  <c-tabs.content value="featured" class="mt-0">
+    {% if featured %}
+    <div class="scroll-scroller relative group/scroller" data-scroller>
+      <button type="button" class="scroll-btn scroll-btn-left" data-scroll-left>{% lucide "chevron-left" size=18 %}</button>
+      <div class="scroll-track flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory" data-scroll-track>
+        {% for page in featured %}
+        {% include "wiki/partials/image_card.html" with page=page %}
+        {% endfor %}
+      </div>
+      <button type="button" class="scroll-btn scroll-btn-right" data-scroll-right>{% lucide "chevron-right" size=18 %}</button>
+    </div>
+    {% else %}
+    <c-alert><c-alert.description>No featured pages yet.</c-alert.description></c-alert>
+    {% endif %}
+  </c-tabs.content>
+
+  <!-- Trending scroller -->
+  <c-tabs.content value="trending" class="mt-0">
+    {% if trending %}
+    <div class="scroll-scroller relative group/scroller" data-scroller>
+      <button type="button" class="scroll-btn scroll-btn-left" data-scroll-left>{% lucide "chevron-left" size=18 %}</button>
+      <div class="scroll-track flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory" data-scroll-track>
+        {% for page in trending %}
+        {% include "wiki/partials/image_card.html" with page=page %}
+        {% endfor %}
+      </div>
+      <button type="button" class="scroll-btn scroll-btn-right" data-scroll-right>{% lucide "chevron-right" size=18 %}</button>
+    </div>
+    {% endif %}
+  </c-tabs.content>
+
+  <!-- Shared links scroller -->
+  <c-tabs.content value="links" class="mt-0">
+    {% if all_shared_links %}
+    <div class="scroll-scroller relative group/scroller mb-6" data-scroller>
+      <button type="button" class="scroll-btn scroll-btn-left" data-scroll-left>{% lucide "chevron-left" size=18 %}</button>
+      <div class="scroll-track flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory" data-scroll-track>
+        {% for link in all_shared_links %}
+        {% include "wiki/partials/link_preview_card.html" with link=link %}
+        {% endfor %}
+      </div>
+      <button type="button" class="scroll-btn scroll-btn-right" data-scroll-right>{% lucide "chevron-right" size=18 %}</button>
+    </div>
+    <a href="{% url 'wiki:shared_links' %}"><c-button variant="outline">View all shared links</c-button></a>
+    {% else %}
+    <c-alert>
+      <c-alert.title>No shared links</c-alert.title>
+      <c-alert.description>Add links in admin to build your curated link collection with previews.</c-alert.description>
+    </c-alert>
+    {% endif %}
+  </c-tabs.content>
+
+  <!-- Categories -->
+  <c-tabs.content value="categories" class="mt-0">
+    {% if categories %}
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      {% for cat in categories %}
+      <c-card class="transition-all duration-300 hover:shadow-md hover:-translate-y-0.5">
+        <a href="{% url 'wiki:category' cat.slug %}" class="block">
+          <c-card.header>
+            <c-card.title class="font-display flex items-center gap-2">
+              {% lucide "layers" size=18 css_class="text-primary" %} {{ cat.name }}
+            </c-card.title>
+            {% if cat.description %}<c-card.description>{{ cat.description }}</c-card.description>{% endif %}
+          </c-card.header>
+          <c-card.content>
+            <c-badge variant="secondary">{{ cat.pages.count }} pages</c-badge>
+          </c-card.content>
+        </a>
+      </c-card>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </c-tabs.content>
+</c-tabs>
+
+<!-- Featured links strip (always visible) -->
+{% if shared_links %}
+<section class="mt-12 fade-in-up stagger-3">
+  <div class="flex items-center justify-between mb-4">
+    <h2 class="text-xl font-display font-semibold flex items-center gap-2">
+      {% lucide "share-2" size=22 css_class="text-primary icon-pulse" %} Curated Links
+    </h2>
+    <a href="{% url 'wiki:shared_links' %}" class="text-sm text-primary hover:underline">View all</a>
+  </div>
+  <div class="scroll-scroller relative" data-scroller>
+    <button type="button" class="scroll-btn scroll-btn-left" data-scroll-left>{% lucide "chevron-left" size=18 %}</button>
+    <div class="scroll-track flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory" data-scroll-track>
+      {% for link in shared_links %}
+      {% include "wiki/partials/link_preview_card.html" with link=link %}
+      {% endfor %}
+    </div>
+    <button type="button" class="scroll-btn scroll-btn-right" data-scroll-right>{% lucide "chevron-right" size=18 %}</button>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

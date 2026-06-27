@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full"
+  x-data="{
+    dark: localStorage.getItem('theme') === 'dark' ||
+          (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)
+  }"
+  x-init="document.documentElement.classList.toggle('dark', dark); $watch('dark', v => { localStorage.setItem('theme', v ? 'dark' : 'light'); document.documentElement.classList.toggle('dark', v) })"
+  :class="{ 'dark': dark }">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="{% block meta_description %}{{ SITE_NAME }} — Your personal Wikipedia{% endblock %}">
+  <meta name="theme-color" content="#1e40af">
+  <title>{% block title %}{{ SITE_NAME }}{% endblock %}</title>
+  {% load static tailwind_tags pwa wiki_tags sekizai_tags %}
+  {% tailwind_css %}
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400&display=swap" rel="stylesheet">
+  <link rel="manifest" href="{% url 'manifest' %}">
+  <link rel="apple-touch-icon" href="{% static 'icons/icon-192.png' %}">
+  <link rel="stylesheet" href="{% static 'css/wiki.css' %}">
+  {% progressive_web_app_meta %}
+  {% render_block "css" %}
+  {% block extra_head %}{% endblock %}
+</head>
+<body class="min-h-full bg-background text-foreground antialiased flex flex-col">
+  {% load cms_tags %}
+  {% cms_toolbar %}
+  <!-- Site header -->
+  <header class="sticky top-0 z-40 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <div class="container mx-auto flex h-16 max-w-7xl items-center gap-4 px-4 sm:px-6 lg:px-8">
+      <a href="{% url 'wiki:home' %}" class="flex items-center gap-2 font-display font-semibold tracking-tight mr-2 transition-opacity hover:opacity-80">
+        <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground text-sm font-bold transition-transform duration-300 hover:scale-105">W</span>
+        <span class="hidden sm:inline">{{ SITE_NAME }}</span>
+      </a>
+
+      <!-- Desktop nav -->
+      <nav class="hidden md:flex items-center gap-1">
+        {% include "wiki/partials/nav_link.html" with url="/" label="Home" %}
+        {% include "wiki/partials/nav_link.html" with url="/search/" label="Search" %}
+        {% if user.is_authenticated %}
+        {% include "wiki/partials/nav_link.html" with url="/bookmarks/" label="Bookmarks" %}
+        {% include "wiki/partials/nav_link.html" with url="/admin/" label="Admin" %}
+        <form method="post" action="{% url 'account_logout' %}" class="inline">
+          {% csrf_token %}
+          <button type="submit" class="inline-flex items-center px-3 py-2 text-sm font-medium rounded-md hover:bg-accent hover:text-accent-foreground transition-colors">Sign out</button>
+        </form>
+        {% else %}
+        {% include "wiki/partials/nav_link.html" with url="/accounts/login/" label="Sign in" %}
+        {% include "wiki/partials/nav_link.html" with url="/accounts/signup/" label="Sign up" %}
+        {% endif %}
+        {% include "wiki/partials/nav_link.html" with url="/links/" label="Links" %}
+        {% include "wiki/partials/nav_link.html" with url="/feeds/latest/" label="RSS" %}
+      </nav>
+
+      <div class="flex-1"></div>
+
+      <!-- Search (desktop) -->
+      <div class="hidden lg:block flex-1 max-w-sm relative" x-data="instantSearch('{% url 'wiki:search' %}')" @click.outside="open = false">
+        <form action="{% url 'wiki:search' %}" method="get" class="flex items-center gap-2" @submit="if (!query.trim()) $event.preventDefault()">
+          <div class="relative flex-1">
+            <c-input type="search" name="q" x-model="query" @input.debounce.200ms="fetchResults()" @focus="fetchResults()" placeholder="Search wiki…" class="h-9 w-full" aria-label="Search" autocomplete="off"></c-input>
+            <div x-show="open && results.length" x-cloak class="absolute top-full left-0 right-0 z-50 mt-1 rounded-lg border border-border bg-popover shadow-lg overflow-hidden">
+              <template x-for="item in results" :key="item.url">
+                <a :href="item.url" class="flex flex-col gap-0.5 px-3 py-2 hover:bg-accent transition-colors border-b border-border/50 last:border-0">
+                  <span class="text-sm font-medium" x-text="item.title"></span>
+                  <span class="text-xs text-muted-foreground line-clamp-1" x-text="item.snippet"></span>
+                </a>
+              </template>
+              <a :href="searchPageUrl + '?q=' + encodeURIComponent(query)" class="block px-3 py-2 text-xs text-primary hover:bg-accent text-center">View all results</a>
+            </div>
+          </div>
+          <c-button type="submit" size="sm">Search</c-button>
+        </form>
+      </div>
+
+      <!-- Dark mode toggle -->
+      <c-button variant="ghost" size="icon" @click="dark = !dark" aria-label="Toggle theme" class="transition-transform duration-300 hover:rotate-12">
+        <span x-show="!dark">{% lucide "sun" size=18 animate="pulse" %}</span>
+        <span x-show="dark" x-cloak>{% lucide "moon" size=18 animate="pulse" %}</span>
+      </c-button>
+
+      <!-- Mobile menu sheet -->
+      <div class="md:hidden" x-data>
+        <c-sheet>
+          <c-sheet.trigger>
+            <c-button variant="ghost" size="icon" aria-label="Open menu">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+            </c-button>
+          </c-sheet.trigger>
+          <c-sheet.content side="right">
+            <c-sheet.header>
+              <c-sheet.title>Menu</c-sheet.title>
+              <c-sheet.description>Navigate {{ SITE_NAME }}</c-sheet.description>
+            </c-sheet.header>
+            <nav class="flex flex-col gap-1 mt-4">
+              {% include "wiki/partials/nav_link.html" with url="/" label="Home" class="justify-start w-full" %}
+              {% include "wiki/partials/nav_link.html" with url="/search/" label="Search" class="justify-start w-full" %}
+              {% if user.is_authenticated %}
+              {% include "wiki/partials/nav_link.html" with url="/bookmarks/" label="Bookmarks" class="justify-start w-full" %}
+              {% include "wiki/partials/nav_link.html" with url="/admin/" label="Admin" class="justify-start w-full" %}
+              {% else %}
+              {% include "wiki/partials/nav_link.html" with url="/accounts/login/" label="Sign in" class="justify-start w-full" %}
+              {% include "wiki/partials/nav_link.html" with url="/accounts/signup/" label="Sign up" class="justify-start w-full" %}
+              {% endif %}
+              {% include "wiki/partials/nav_link.html" with url="/feeds/latest/" label="RSS Feed" class="justify-start w-full" %}
+            </nav>
+            <form action="{% url 'wiki:search' %}" method="get" class="mt-6 flex flex-col gap-2">
+              <c-input type="search" name="q" placeholder="Search…"></c-input>
+              <c-button type="submit" class="w-full">Search</c-button>
+            </form>
+          </c-sheet.content>
+        </c-sheet>
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-1 container mx-auto max-w-7xl w-full px-4 sm:px-6 lg:px-8 py-8">
+    {% if messages %}
+    <div class="mb-6 space-y-3">
+      {% for message in messages %}
+      <c-alert variant="{% if message.tags == 'error' %}destructive{% else %}default{% endif %}">
+        {% if message.tags == 'error' %}
+        <c-alert.title>Error</c-alert.title>
+        {% else %}
+        <c-alert.title>Success</c-alert.title>
+        {% endif %}
+        <c-alert.description>{{ message }}</c-alert.description>
+      </c-alert>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="border-t border-border mt-auto">
+    <div class="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 flex flex-col sm:flex-row justify-between items-center gap-4 text-sm text-muted-foreground">
+      <p>&copy; {% now "Y" %} {{ SITE_NAME }}</p>
+      <div class="flex items-center gap-4">
+        <a href="{% url 'wiki:feed_latest' %}" class="hover:text-foreground transition-colors">RSS</a>
+        <a href="/sitemap.xml" class="hover:text-foreground transition-colors">Sitemap</a>
+        <span id="offline-status" class="text-green-600 dark:text-green-400 hidden text-xs">● Offline ready</span>
+      </div>
+    </div>
+  </footer>
+
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.9/dist/cdn.min.js"></script>
+  <script src="{% static 'js/app.js' %}"></script>
+  {% render_block "js" %}
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}Sign out — {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto">
+  <c-card>
+    <c-card.header>
+      <c-card.title>Sign out</c-card.title>
+      <c-card.description>Are you sure you want to sign out?</c-card.description>
+    </c-card.header>
+    <c-card.content>
+      <form method="post" action="{% url 'account_logout' %}">
+        {% csrf_token %}
+        {% if redirect_field_value %}
+        <input type="hidden" name="{{ redirect_field_name }}" value="{{ redirect_field_value }}">
+        {% endif %}
+        <c-button type="submit" variant="destructive" class="w-full">Sign out</c-button>
+      </form>
+    </c-card.content>
+  </c-card>
+</div>
+{% endblock %}

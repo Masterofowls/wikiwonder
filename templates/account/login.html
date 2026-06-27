@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% load widget_tweaks %}
+
+{% block title %}Sign in — {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto">
+  <c-card>
+    <c-card.header>
+      <c-card.title>Sign in</c-card.title>
+      <c-card.description>Access bookmarks, publishing tools, and your account.</c-card.description>
+    </c-card.header>
+    <c-card.content>
+      <form method="post" action="{% url 'account_login' %}" class="space-y-4">
+        {% csrf_token %}
+        {% if redirect_field_value %}
+        <input type="hidden" name="{{ redirect_field_name }}" value="{{ redirect_field_value }}">
+        {% endif %}
+        {% if form.non_field_errors %}
+        <c-alert variant="destructive">
+          <c-alert.description>{{ form.non_field_errors|join:", " }}</c-alert.description>
+        </c-alert>
+        {% endif %}
+        <div class="space-y-2">
+          <label for="id_login" class="text-sm font-medium">Username or email</label>
+          {% render_field form.login class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" %}
+        </div>
+        <div class="space-y-2">
+          <label for="id_password" class="text-sm font-medium">Password</label>
+          {% render_field form.password class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" %}
+        </div>
+        <div class="flex items-center gap-2">
+          {% render_field form.remember class="h-4 w-4 rounded border-input" %}
+          <label for="id_remember" class="text-sm">Remember me</label>
+        </div>
+        <c-button type="submit" class="w-full">Sign in</c-button>
+      </form>
+    </c-card.content>
+    <c-card.footer class="flex flex-col gap-2 text-sm text-muted-foreground">
+      <a href="{% url 'account_reset_password' %}" class="hover:text-foreground transition-colors">Forgot password?</a>
+      <p>Don't have an account? <a href="{% url 'account_signup' %}" class="text-primary hover:underline">Sign up</a></p>
+    </c-card.footer>
+  </c-card>
+</div>
+{% endblock %}

@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% load widget_tweaks %}
+
+{% block title %}Create account — {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto">
+  <c-card>
+    <c-card.header>
+      <c-card.title>Create account</c-card.title>
+      <c-card.description>Join {{ SITE_NAME }} to bookmark pages and publish content.</c-card.description>
+    </c-card.header>
+    <c-card.content>
+      <form method="post" action="{% url 'account_signup' %}" class="space-y-4">
+        {% csrf_token %}
+        {% if redirect_field_value %}
+        <input type="hidden" name="{{ redirect_field_name }}" value="{{ redirect_field_value }}">
+        {% endif %}
+        {% if form.non_field_errors %}
+        <c-alert variant="destructive">
+          <c-alert.description>{{ form.non_field_errors|join:", " }}</c-alert.description>
+        </c-alert>
+        {% endif %}
+        {% for field in form %}
+        <div class="space-y-2">
+          <label for="{{ field.id_for_label }}" class="text-sm font-medium">{{ field.label }}</label>
+          {% render_field field class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" %}
+          {% if field.errors %}
+          <p class="text-sm text-destructive">{{ field.errors|join:", " }}</p>
+          {% endif %}
+        </div>
+        {% endfor %}
+        <c-button type="submit" class="w-full">Create account</c-button>
+      </form>
+    </c-card.content>
+    <c-card.footer class="text-sm text-muted-foreground">
+      Already have an account? <a href="{% url 'account_login' %}" class="text-primary hover:underline">Sign in</a>
+    </c-card.footer>
+  </c-card>
+</div>
+{% endblock %}

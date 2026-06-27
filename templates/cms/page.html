@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% load cms_tags %}
+
+{% block title %}{% page_attribute "page_title" %} — {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<article class="max-w-3xl mx-auto">
+  <header class="mb-8">
+    <h1 class="text-3xl font-display font-bold tracking-tight">{% page_attribute "title" %}</h1>
+  </header>
+  <div class="prose prose-neutral dark:prose-invert max-w-none cms-content">
+    {% placeholder "content" %}
+  </div>
+</article>
+{% endblock %}

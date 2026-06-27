@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% load wiki_tags %}
+
+{% block title %}{{ link.title }} — Shared Link{% endblock %}
+{% block meta_description %}{{ link.description|default:link.title }}{% endblock %}
+
+{% block content %}
+<nav aria-label="Breadcrumb" class="flex items-center gap-1 text-sm text-muted-foreground mb-6 fade-in-up">
+  <a href="{% url 'wiki:home' %}" class="hover:text-foreground transition-colors">Home</a>
+  <span>/</span>
+  <a href="{% url 'wiki:shared_links' %}" class="hover:text-foreground transition-colors">Links</a>
+  <span>/</span>
+  <span class="text-foreground font-medium truncate">{{ link.title }}</span>
+</nav>
+
+<div class="grid lg:grid-cols-5 gap-8 fade-in-up">
+  <div class="lg:col-span-3">
+    <c-card class="overflow-hidden">
+      {% if link.image_url %}
+      <div class="aspect-video overflow-hidden bg-muted">
+        <img src="{{ link.image_url }}" alt="{{ link.title }}" class="w-full h-full object-cover">
+      </div>
+      {% endif %}
+      <c-card.header>
+        <div class="flex items-center gap-2 mb-2">
+          {% if link.favicon_url %}
+          <img src="{{ link.favicon_url }}" alt="" class="w-5 h-5 rounded" loading="lazy">
+          {% endif %}
+          <c-badge variant="outline">{{ link.site_name }}</c-badge>
+        </div>
+        <c-card.title class="text-2xl font-display">{{ link.title }}</c-card.title>
+        {% if link.description %}
+        <c-card.description class="text-base">{{ link.description }}</c-card.description>
+        {% endif %}
+      </c-card.header>
+      <c-card.footer class="flex gap-3 pb-6">
+        <a href="{% url 'wiki:shared_link_go' link.slug %}" target="_blank" rel="noopener noreferrer">
+          <c-button>{% lucide "external-link" size=16 %} Visit link</c-button>
+        </a>
+        <c-button variant="outline" onclick="navigator.clipboard.writeText(window.location.href)">
+          {% lucide "share-2" size=16 %} Copy share URL
+        </c-button>
+      </c-card.footer>
+    </c-card>
+  </div>
+  <div class="lg:col-span-2 space-y-4">
+    <c-card>
+      <c-card.header><c-card.title class="text-sm">Link details</c-card.title></c-card.header>
+      <c-card.content class="space-y-3 text-sm">
+        <div><span class="text-muted-foreground">URL</span><p class="break-all font-mono text-xs mt-1">{{ link.url }}</p></div>
+        <div><span class="text-muted-foreground">Clicks</span><p>{{ link.click_count }}</p></div>
+        <div><span class="text-muted-foreground">Added</span><p>{{ link.created_at|date:"M j, Y" }}</p></div>
+      </c-card.content>
+    </c-card>
+    {% if link.page %}
+    <c-card>
+      <c-card.header><c-card.title class="text-sm">Related wiki page</c-card.title></c-card.header>
+      <c-card.content>
+        <a href="{{ link.page.get_absolute_url }}" class="text-primary hover:underline">{{ link.page.title }}</a>
+      </c-card.content>
+    </c-card>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

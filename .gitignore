@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+dist/
+build/
+*.egg
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+media/
+staticfiles/
+static_collected/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+.docker/
+
+# Tailwind
+theme/static/css/dist/
+node_modules/
+
+# Fly.io
+.fly/
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Secrets — never commit
+*.pem
+*.key
+/.venv

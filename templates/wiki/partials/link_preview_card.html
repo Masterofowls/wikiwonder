@@ -1,0 +1,37 @@
+{% load wiki_tags %}
+<c-card class="link-preview-card snap-start shrink-0 w-72 sm:w-80 overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-lg group"
+  data-link-preview-url="{% url 'wiki:shared_link_preview' link.slug %}"
+  data-external-url="{{ link.url }}">
+  <a href="{% url 'wiki:shared_link' link.slug %}" class="block">
+    <div class="relative aspect-[1.91/1] overflow-hidden bg-muted">
+      {% if link.image_url %}
+      <img src="{{ link.image_url }}" alt="{{ link.title }}"
+        class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+        loading="lazy">
+      {% else %}
+      <div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-accent/30">
+        {% lucide "globe" size=48 css_class="text-primary/50 icon-pulse" %}
+      </div>
+      {% endif %}
+      <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent"></div>
+      <div class="absolute bottom-3 left-3 right-3">
+        <div class="flex items-center gap-2 mb-1">
+          {% if link.favicon_url %}
+          <img src="{{ link.favicon_url }}" alt="" class="w-4 h-4 rounded-sm" loading="lazy">
+          {% endif %}
+          <span class="text-xs text-white/80 truncate">{{ link.site_name }}</span>
+        </div>
+        <h3 class="font-semibold text-white line-clamp-2 text-sm">{{ link.title }}</h3>
+      </div>
+    </div>
+    <c-card.content class="pt-3 pb-4">
+      {% if link.description %}
+      <p class="text-xs text-muted-foreground line-clamp-2">{{ link.description }}</p>
+      {% endif %}
+      <div class="flex items-center justify-between mt-2 text-xs text-muted-foreground">
+        <span class="flex items-center gap-1">{% lucide "external-link" size=12 %} Preview</span>
+        <span>{{ link.click_count }} clicks</span>
+      </div>
+    </c-card.content>
+  </a>
+</c-card>
