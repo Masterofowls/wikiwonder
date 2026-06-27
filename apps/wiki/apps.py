@@ -5,3 +5,6 @@ class WikiConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
     name = "apps.wiki"
     verbose_name = "Wiki"
+
+    def ready(self):
+        import apps.wiki.translation  # noqa: F401

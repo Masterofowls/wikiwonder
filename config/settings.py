@@ -14,8 +14,11 @@ environ.Env.read_env(BASE_DIR / ".env")
 SECRET_KEY = env("SECRET_KEY", default="dev-only-insecure-key-change-in-production")
 DEBUG = env("DEBUG")
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS")
+if "testserver" not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append("testserver")
 
 INSTALLED_APPS = [
+    "modeltranslation",
     "djangocms_admin_style",
     "django.contrib.admin",
     "django.contrib.auth",
@@ -49,21 +52,33 @@ INSTALLED_APPS = [
     "widget_tweaks",
     "django_user_agents",
     "imagekit",
+    "i18nfield",
+    "meta",
+    "django_check_seo",
+    "localflavor",
+    "rosetta",
     "theme",
     # Local apps
     "apps.wiki",
     "apps.ai",
     "apps.imports",
     "apps.search",
+    "apps.media",
+    "apps.previews",
+    "apps.seo",
+    "apps.mcp",
+    "apps.cms_extensions",
 ]
 
 MIDDLEWARE = [
+    "apps.wiki.middleware.FlyHealthMiddleware",
     "cms.middleware.utils.ApphookReloadMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.locale.LocaleMiddleware",
+    "apps.wiki.middleware.QueryLanguageMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -94,6 +109,7 @@ TEMPLATES = [
                 "sekizai.context_processors.sekizai",
                 "cms.context_processors.cms_settings",
                 "apps.wiki.context_processors.site_context",
+                "apps.wiki.context_processors.i18n_context",
             ],
         },
     },
@@ -134,7 +150,53 @@ TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
 
-LANGUAGES = [("en", "English")]
+LANGUAGES = [
+    ("en", "English"),
+    ("de", "Deutsch"),
+    ("fr", "Français"),
+    ("es", "Español"),
+    ("uk", "Українська"),
+]
+
+MODELTRANSLATION_DEFAULT_LANGUAGE = "en"
+MODELTRANSLATION_LANGUAGES = ("en", "de", "fr", "es", "uk")
+MODELTRANSLATION_FALLBACK_LANGUAGES = {
+    "default": ("en",),
+    "de": ("en",),
+    "fr": ("en",),
+    "es": ("en",),
+    "uk": ("en",),
+}
+
+# django-rosetta — PO file translation UI (staff only)
+ROSETTA_SHOW_AT_ADMIN_PANEL = True
+ROSETTA_REQUIRES_AUTH = True
+ROSETTA_WSGI_AUTO_RELOAD = DEBUG
+
+# django-meta — OpenGraph, Twitter, Schema.org
+META_SITE_PROTOCOL = env("META_SITE_PROTOCOL", default="http")
+META_SITE_DOMAIN = env("META_SITE_DOMAIN", default="localhost:9000")
+META_SITE_TYPE = "website"
+META_SITE_NAME = env("SITE_NAME", default="WikiWonder")
+META_USE_OG_PROPERTIES = True
+META_USE_TWITTER_PROPERTIES = True
+META_USE_SCHEMAORG_PROPERTIES = True
+
+# django-check-seo
+DJANGO_CHECK_SEO_KEYWORDS_DISCOVERY_METHOD = (
+    "django_check_seo.utils.keywords_discovery.meta_keywords"
+)
+SEO_SITE_KEYWORDS = env(
+    "SEO_SITE_KEYWORDS",
+    default="wiki, knowledge base, encyclopedia, WikiWonder, articles",
+)
+SEO_SITE_DESCRIPTION = env(
+    "SEO_SITE_DESCRIPTION",
+    default=(
+        "WikiWonder is a free wiki and knowledge base for articles, shared links, "
+        "and collaborative notes. Browse encyclopedia-style pages, bookmarks, and imports."
+    ),
+)
 
 CMS_CONFIRM_VERSION4 = True
 CMS_TEMPLATES = [
@@ -143,12 +205,8 @@ CMS_TEMPLATES = [
 ]
 CMS_LANGUAGES = {
     1: [
-        {
-            "code": "en",
-            "name": "English",
-            "public": True,
-            "redirect_on_fallback": True,
-        },
+        {"code": code, "name": name, "public": True, "redirect_on_fallback": True}
+        for code, name in LANGUAGES
     ],
     "default": {
         "public": True,
@@ -158,7 +216,13 @@ CMS_LANGUAGES = {
 CMS_PERMISSION = True
 CMS_PLACEHOLDER_CONF = {
     "content": {
-        "plugins": ["TextPlugin", "PicturePlugin", "LinkPlugin"],
+        "plugins": [
+            "TextPlugin",
+            "PicturePlugin",
+            "LinkPlugin",
+            "WikiEmbedPlugin",
+            "WikiCodePlugin",
+        ],
         "name": "Main content",
     },
 }
@@ -199,10 +263,30 @@ SUPABASE_PUBLISHABLE_KEY = env("SUPABASE_PUBLISHABLE_KEY", default="")
 SUPABASE_SECRET_KEY = env("SUPABASE_SECRET_KEY", default="")
 SUPABASE_JWKS_URL = env("SUPABASE_JWKS_URL", default="")
 
+# Email — default to console when SMTP is not configured (avoids signup 500 on Fly)
+EMAIL_HOST = env("EMAIL_HOST", default="")
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="noreply@wikiwonder.local")
+if EMAIL_HOST:
+    EMAIL_BACKEND = env(
+        "EMAIL_BACKEND", default="django.core.mail.backends.smtp.EmailBackend"
+    )
+    EMAIL_PORT = env.int("EMAIL_PORT", default=587)
+    EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
+    EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
+    EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
+else:
+    EMAIL_BACKEND = env(
+        "EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend"
+    )
+
 # django-allauth
 ACCOUNT_LOGIN_METHODS = {"username", "email"}
 ACCOUNT_SIGNUP_FIELDS = ["email*", "username*", "password1*", "password2*"]
-ACCOUNT_EMAIL_VERIFICATION = env("ACCOUNT_EMAIL_VERIFICATION", default="optional")
+# Without SMTP, skip verification emails unless explicitly configured
+_default_email_verification = "optional" if EMAIL_HOST else "none"
+ACCOUNT_EMAIL_VERIFICATION = env(
+    "ACCOUNT_EMAIL_VERIFICATION", default=_default_email_verification
+)
 ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = True
 ACCOUNT_LOGOUT_ON_GET = False
 ACCOUNT_SESSION_REMEMBER = True
@@ -254,7 +338,8 @@ PWA_APP_LANG = "en-US"
 # Security (production)
 if not DEBUG:
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-    SECURE_SSL_REDIRECT = True
+    # Fly.io terminates TLS at the edge; internal HTTP health checks must not 301.
+    SECURE_SSL_REDIRECT = env.bool("SECURE_SSL_REDIRECT", default=False)
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_HSTS_SECONDS = 31536000

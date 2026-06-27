@@ -1,0 +1,18 @@
+{% if SHOW_COOKIE_BANNER %}
+<div id="cookie-consent" class="fixed bottom-0 inset-x-0 z-50 p-4" role="dialog" aria-label="Cookie consent">
+  <div class="container mx-auto max-w-3xl rounded-xl border border-border bg-card shadow-lg p-4 sm:p-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+    <p class="text-sm text-muted-foreground flex-1">
+      We use essential cookies for language preference, reading mode, and offline bookmarks.
+      Optional analytics cookies are not enabled.
+    </p>
+    <div class="flex gap-2 shrink-0">
+      <button type="button" data-cookie-decline class="text-sm px-3 py-2 rounded-md border border-border hover:bg-accent">
+        Essential only
+      </button>
+      <button type="button" data-cookie-accept class="text-sm px-3 py-2 rounded-md bg-primary text-primary-foreground hover:opacity-90">
+        Accept
+      </button>
+    </div>
+  </div>
+</div>
+{% endif %}

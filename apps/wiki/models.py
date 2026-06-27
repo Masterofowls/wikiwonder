@@ -3,7 +3,9 @@ from django.conf import settings
 from django.db import models
 from django.urls import reverse
 from django.utils.text import slugify
+from i18nfield.fields import I18nTextField
 from markdownx.models import MarkdownxField
+from meta.models import ModelMeta
 
 
 class Category(models.Model):
@@ -45,7 +47,7 @@ class Tag(models.Model):
         return self.name
 
 
-class WikiPage(models.Model):
+class WikiPage(ModelMeta, models.Model):
     class Status(models.TextChoices):
         DRAFT = "draft", "Draft"
         PUBLISHED = "published", "Published"
@@ -77,6 +79,19 @@ class WikiPage(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True, db_index=True)
     published_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    editorial_notes = I18nTextField(
+        blank=True,
+        help_text="Per-language editorial notes (django-i18nfield JSON storage)",
+    )
+
+    _metadata = {
+        "title": "get_meta_title",
+        "description": "get_meta_description",
+        "image": "get_meta_image_url",
+        "url": "get_absolute_url",
+        "object_type": "article",
+        "locale": "get_meta_locale",
+    }
 
     class Meta:
         ordering = ["-updated_at"]
@@ -98,6 +113,26 @@ class WikiPage(models.Model):
 
     def get_absolute_url(self):
         return reverse("wiki:page_detail", kwargs={"slug": self.slug})
+
+    def get_meta_title(self, context=None):
+        from apps.seo.services import page_keywords
+
+        keywords = page_keywords(self)
+        primary = keywords[0] if keywords else "wiki"
+        return f"{self.title} — {primary} | {settings.SITE_NAME}"
+
+    def get_meta_description(self, context=None):
+        from apps.seo.services import _clip
+
+        text = self.summary or f"{self.title} — wiki article on {settings.SITE_NAME}."
+        return _clip(text, min_len=50, max_len=160)
+
+    def get_meta_image_url(self, context=None):
+        return self.cover_url
+
+    def get_meta_locale(self, context=None):
+        from django.utils.translation import get_language
+        return (get_language() or "en").replace("-", "_")
 
     @property
     def cover_url(self) -> str:

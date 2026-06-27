@@ -1,7 +1,9 @@
 from django.contrib import admin
 from django.utils.html import format_html
+from i18nfield.fields import I18nTextField
 from import_export import resources
 from import_export.admin import ImportExportModelAdmin
+from modeltranslation.admin import TranslationAdmin
 
 from apps.wiki.models import (
     Bookmark,
@@ -31,7 +33,7 @@ class PageRevisionInline(admin.TabularInline):
 
 
 @admin.register(Category)
-class CategoryAdmin(ImportExportModelAdmin):
+class CategoryAdmin(TranslationAdmin, ImportExportModelAdmin):
     list_display = ("name", "slug", "parent", "page_count")
     prepopulated_fields = {"slug": ("name",)}
     search_fields = ("name",)
@@ -59,7 +61,7 @@ class WikiPageResource(resources.ModelResource):
 
 
 @admin.register(WikiPage)
-class WikiPageAdmin(ImportExportModelAdmin):
+class WikiPageAdmin(TranslationAdmin, ImportExportModelAdmin):
     resource_class = WikiPageResource
     list_display = ("title", "status_badge", "category", "author", "view_count", "updated_at")
     list_filter = ("status", "category", "is_featured", "tags")
@@ -71,7 +73,7 @@ class WikiPageAdmin(ImportExportModelAdmin):
     actions = ["publish_pages", "split_sections_action"]
     fieldsets = (
         (None, {"fields": ("title", "slug", "status", "preview_link")}),
-        ("Content", {"fields": ("summary", "content", "cover_image")}),
+        ("Content", {"fields": ("summary", "content", "cover_image", "editorial_notes")}),
         ("Organization", {"fields": ("category", "tags", "is_featured")}),
         ("Meta", {"fields": ("author", "view_count", "published_at", "created_at", "updated_at")}),
     )
@@ -91,6 +93,13 @@ class WikiPageAdmin(ImportExportModelAdmin):
         if obj.pk:
             return format_html('<a href="{}" target="_blank">View page →</a>', obj.get_absolute_url())
         return "—"
+
+    def formfield_for_dbfield(self, db_field, request, **kwargs):
+        # i18nfield + modeltranslation admin widgets are incompatible (locales kwarg).
+        if isinstance(db_field, I18nTextField):
+            kwargs.pop("widget", None)
+            return db_field.formfield(**kwargs)
+        return super().formfield_for_dbfield(db_field, request, **kwargs)
 
     @admin.action(description="Publish selected pages")
     def publish_pages(self, request, queryset):

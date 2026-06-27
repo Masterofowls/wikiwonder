@@ -2,7 +2,7 @@
 set -e
 
 echo "Running migrations..."
-uv run python manage.py migrate --noinput
+/app/.venv/bin/python manage.py migrate --noinput
 
 echo "Starting application..."
 exec "$@"

@@ -1,8 +1,18 @@
 {% extends "base.html" %}
-{% load wiki_tags humanize %}
+{% load wiki_tags humanize seo_tags %}
 
 {% block title %}{{ page.title }} — {{ SITE_NAME }}{% endblock %}
 {% block meta_description %}{{ page.summary|default:page.title }}{% endblock %}
+
+{% block extra_head %}
+{% django_meta_tags %}
+{% if hreflang_links %}
+{% for link in hreflang_links %}
+<link rel="alternate" hreflang="{{ link.code }}" href="{{ link.href }}">
+{% endfor %}
+<meta http-equiv="content-language" content="{{ CURRENT_LANGUAGE|default:'en' }}">
+{% endif %}
+{% endblock %}
 
 {% block content %}
 <!-- Breadcrumb -->
@@ -35,14 +45,17 @@
         <span class="text-sm text-muted-foreground">Updated {{ page.updated_at|date:"M j, Y" }} · {{ page.view_count }} views</span>
       </div>
     </div>
-    {% if user.is_authenticated %}
-    <form method="post" action="{% url 'wiki:toggle_bookmark' page.slug %}">
-      {% csrf_token %}
-      <c-button type="submit" variant="{% if is_bookmarked %}secondary{% else %}outline{% endif %}">
-        {% if is_bookmarked %}★ Bookmarked{% else %}☆ Bookmark{% endif %}
-      </c-button>
-    </form>
-    {% endif %}
+    <div class="flex flex-col sm:flex-row gap-2 shrink-0">
+      {% include "wiki/partials/page_actions.html" %}
+      {% if user.is_authenticated %}
+      <form method="post" action="{% url 'wiki:toggle_bookmark' page.slug %}">
+        {% csrf_token %}
+        <c-button type="submit" variant="{% if is_bookmarked %}secondary{% else %}outline{% endif %}">
+          {% if is_bookmarked %}★ Bookmarked{% else %}☆ Bookmark{% endif %}
+        </c-button>
+      </form>
+      {% endif %}
+    </div>
   </div>
 
   <div class="flex flex-col lg:flex-row gap-6">
@@ -71,6 +84,22 @@
     {% endif %}
 
     <div class="flex-1 min-w-0 space-y-6">
+      {% if content_blocks %}
+      <section class="space-y-4" aria-label="Media and documents">
+        {% for block in content_blocks %}
+        <div class="wiki-block wiki-block--{{ block.type }}" data-block-id="{{ block.id }}">
+          {{ block.html|safe }}
+          {% if block.annotations %}
+          <ul class="wiki-annotations mt-2 space-y-1 text-sm text-muted-foreground">
+            {% for note in block.annotations %}
+            <li><strong>{{ note.label }}</strong> {{ note.body }}</li>
+            {% endfor %}
+          </ul>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </section>
+      {% endif %}
       {% if sections %}
       {% for section in sections %}
       <c-card id="{{ section.anchor }}" class="scroll-mt-24">

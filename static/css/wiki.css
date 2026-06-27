@@ -180,3 +180,22 @@ html { scroll-behavior: smooth; }
 
 .stat-card { transition: transform 0.3s, box-shadow 0.3s; }
 .stat-card:hover { transform: translateY(-2px); }
+
+/* Reading view — distraction-free article mode */
+body.reading-mode header,
+body.reading-mode footer,
+body.reading-mode .cms-toolbar,
+body.reading-mode aside {
+  display: none !important;
+}
+body.reading-mode main {
+  max-width: 42rem;
+  margin-inline: auto;
+}
+body.reading-mode .wiki-page .prose {
+  font-size: 1.125rem;
+  line-height: 1.75;
+}
+body.reading-mode #cookie-consent {
+  display: none;
+}

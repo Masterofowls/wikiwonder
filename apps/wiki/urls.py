@@ -19,5 +19,6 @@ urlpatterns = [
     path("wiki/<slug:slug>/", views.PageDetailView.as_view(), name="page_detail"),
     path("wiki/<slug:slug>/preview/", views.PagePreviewView.as_view(), name="page_preview"),
     path("wiki/<slug:slug>/bookmark/", views.ToggleBookmarkView.as_view(), name="toggle_bookmark"),
+    path("set-language/", views.SetLanguageView.as_view(), name="set_language"),
     path("feeds/latest/", LatestPagesFeed(), name="feed_latest"),
 ]

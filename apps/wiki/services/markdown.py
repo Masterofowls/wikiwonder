@@ -5,31 +5,48 @@ import bleach
 import markdown
 from django.utils.safestring import mark_safe
 
+from apps.wiki.services.embeds import process_embeds
+
 ALLOWED_TAGS = bleach.sanitizer.ALLOWED_TAGS | {
     "h1", "h2", "h3", "h4", "h5", "h6",
     "p", "pre", "code", "blockquote", "hr",
     "ul", "ol", "li", "dl", "dt", "dd",
     "table", "thead", "tbody", "tr", "th", "td",
     "img", "a", "strong", "em", "del", "sup", "sub",
-    "details", "summary",
+    "details", "summary", "figure", "figcaption", "video", "audio",
+    "iframe", "span", "div",
 }
 ALLOWED_ATTRIBUTES = {
     **bleach.sanitizer.ALLOWED_ATTRIBUTES,
-    "a": ["href", "title", "rel"],
-    "img": ["src", "alt", "title", "width", "height"],
+    "a": ["href", "title", "rel", "class", "target"],
+    "img": ["src", "alt", "title", "width", "height", "loading", "class"],
     "code": ["class"],
+    "pre": ["class"],
     "th": ["scope"],
     "td": ["colspan", "rowspan"],
+    "video": ["src", "controls", "poster", "class"],
+    "audio": ["src", "controls", "class"],
+    "iframe": ["src", "title", "loading", "sandbox", "class"],
+    "span": ["class", "data-url"],
+    "div": ["class", "data-graph-type", "data-graph-dsl"],
+    "figure": ["class"],
+    "figcaption": ["class"],
 }
 
 
 def render_markdown(text: str) -> str:
-    """Convert markdown to sanitized HTML."""
+    """Convert markdown to sanitized HTML with embeds and URL highlights."""
     if not text:
         return ""
+    text = process_embeds(text)
     html = markdown.markdown(
         text,
         extensions=["extra", "codehilite", "toc", "tables", "fenced_code", "nl2br"],
+    )
+    html = re.sub(
+        r'<a href="(https?://[^"]+)"',
+        r'<a class="wiki-url-highlight" href="\1" target="_blank" rel="noopener noreferrer"',
+        html,
     )
     clean = bleach.clean(html, tags=ALLOWED_TAGS, attributes=ALLOWED_ATTRIBUTES)
     return mark_safe(clean)
@@ -75,7 +92,6 @@ def split_markdown_into_sections(content: str) -> list[dict]:
         end = matches[i + 1].start() if i + 1 < len(matches) else len(content)
         section_content = content[start:end].strip()
 
-        # Only split on H2; H1 sections become sub-content of previous if H1
         if level == 1 and sections:
             sections[-1]["content"] += f"\n\n# {title}\n\n{section_content}"
             continue

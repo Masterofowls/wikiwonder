@@ -1,10 +1,15 @@
+from django.conf import settings
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import F, Sum
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect
+from django.utils import translation
 from django.views.generic import DetailView, ListView, TemplateView, View
 
+from apps.previews.services import preview_from_block
 from apps.search.services import wiki_page_queryset
+from apps.seo.services import home_seo, site_defaults, wiki_page_seo
+from apps.wiki.i18n_helpers import hreflang_links
 from apps.wiki.models import Bookmark, Category, SharedLink, WikiPage
 from apps.wiki.services.link_preview import fetch_link_preview
 from apps.wiki.services.markdown import render_markdown
@@ -38,6 +43,7 @@ class HomeView(ListView):
             "links": SharedLink.objects.count(),
             "views": published.aggregate(total=Sum("view_count"))["total"] or 0,
         }
+        ctx["seo"] = home_seo()
         return ctx
 
 
@@ -50,7 +56,7 @@ class PageDetailView(DetailView):
 
     def get_queryset(self):
         qs = WikiPage.objects.select_related("category", "author").prefetch_related(
-            "sections", "tags"
+            "sections", "tags", "content_blocks__annotations"
         )
         if not self.request.user.is_staff:
             qs = qs.filter(status=WikiPage.Status.PUBLISHED)
@@ -78,7 +84,30 @@ class PageDetailView(DetailView):
             ctx["is_bookmarked"] = Bookmark.objects.filter(
                 user=self.request.user, page=self.object
             ).exists()
+        ctx["seo"] = wiki_page_seo(self.object)
+        ctx["content_blocks"] = [
+            preview_from_block(b) for b in self.object.content_blocks.all()
+        ]
+        ctx["hreflang_links"] = hreflang_links(self.request, self.object.get_absolute_url())
+        ctx["share_api_url"] = f"/api/pages/{self.object.slug}/share/"
+        ctx["django_meta"] = self.object.as_meta(request=self.request)
         return ctx
+
+
+class SetLanguageView(View):
+    """Persist UI language for modeltranslation + browser translate hints."""
+
+    def post(self, request):
+        lang = request.POST.get("language", "")
+        next_url = request.POST.get("next") or request.META.get("HTTP_REFERER") or "/"
+        if lang in dict(settings.LANGUAGES):
+            translation.activate(lang)
+            response = redirect(next_url)
+            response.set_cookie(
+                "wikiwonder_lang", lang, max_age=365 * 24 * 3600, samesite="Lax"
+            )
+            return response
+        return redirect(next_url)
 
 
 class PagePreviewView(DetailView):

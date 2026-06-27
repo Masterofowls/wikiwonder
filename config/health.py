@@ -4,21 +4,21 @@ from django.views import View
 
 
 class HealthView(View):
+    """Liveness probe — always 200 so Fly routing works during DB warmup."""
+
     def get(self, request):
+        db_ok = True
+        db_error = None
         try:
             connection.ensure_connection()
-            db_ok = True
         except Exception as exc:
             db_ok = False
             db_error = str(exc)
-        else:
-            db_error = None
 
-        status = 200 if db_ok else 503
         return JsonResponse(
             {
-                "status": "healthy" if db_ok else "unhealthy",
+                "status": "healthy" if db_ok else "degraded",
                 "database": "ok" if db_ok else db_error,
             },
-            status=status,
+            status=200,
         )

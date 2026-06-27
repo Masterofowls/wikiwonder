@@ -5,22 +5,33 @@ from django.contrib import admin
 from django.contrib.sitemaps.views import sitemap
 from django.urls import include, path
 
+from apps.seo.sitemaps import SharedLinkSitemap, WikiCategorySitemap
+from apps.seo.views import RobotsTxtView
 from apps.wiki.sitemaps import WikiPageSitemap
 from config.health import HealthView
 
-sitemaps = {"pages": WikiPageSitemap}
+sitemaps = {
+    "pages": WikiPageSitemap,
+    "categories": WikiCategorySitemap,
+    "links": SharedLinkSitemap,
+}
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("accounts/", include("allauth.urls")),
     path("health/", HealthView.as_view(), name="health"),
+    path("robots.txt", RobotsTxtView.as_view(), name="robots"),
     path("markdownx/", include("markdownx.urls")),
     path("", include("pwa.urls")),
     path("", include("apps.wiki.urls")),
     path("api/", include("apps.wiki.api_urls")),
     path("api/search/", include("apps.search.urls")),
+    path("api/preview/", include("apps.previews.urls")),
+    path("api/mcp/", include("apps.mcp.urls")),
     path("api/ai/", include("apps.ai.urls")),
     path("api/import/", include("apps.imports.urls")),
+    path("django-check-seo/", include("django_check_seo.urls")),
+    path("rosetta/", include("rosetta.urls")),
     path(
         "sitemap.xml",
         sitemap,

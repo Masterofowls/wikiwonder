@@ -1,7 +1,8 @@
 {% extends "base.html" %}
 {% load humanize wiki_tags %}
 
-{% block title %}{{ SITE_NAME }} — Home{% endblock %}
+{% block title %}{{ seo.title }}{% endblock %}
+{% block meta_description %}{{ seo.description }}{% endblock %}
 
 {% block content %}
 <!-- Hero -->
@@ -10,9 +11,10 @@
     <c-badge variant="secondary" class="mb-4">
       {% lucide "sparkles" size=14 animate="pulse" %} Knowledge Base
     </c-badge>
-    <h1 class="text-3xl sm:text-5xl font-display font-bold tracking-tight mb-3">{{ SITE_NAME }}</h1>
+    <h1 class="text-3xl sm:text-5xl font-display font-bold tracking-tight mb-3">{{ SITE_NAME }} Wiki Knowledge Base</h1>
     <p class="text-lg text-muted-foreground mb-6">
-      Browse wiki pages, shared links with live previews, and AI-powered imports — all in one place.
+      Browse wiki articles, shared links with live previews, and AI-powered imports — your personal
+      encyclopedia for notes, research, and collaborative knowledge.
     </p>
     <div class="flex flex-wrap gap-3">
       <a href="{% url 'wiki:search' %}" class="btn-shimmer inline-flex items-center gap-2 h-10 px-8 rounded-md text-sm font-medium bg-primary text-primary-foreground shadow hover:bg-primary/90 transition-all duration-300">
@@ -71,6 +73,32 @@
       </div>
     </c-card.content>
   </c-card>
+</section>
+
+<!-- SEO intro: keywords, depth, external reference -->
+<section class="prose prose-neutral dark:prose-invert max-w-none mb-10 fade-in-up">
+  <h2 class="text-2xl font-display font-semibold">Wiki articles, categories, and shared knowledge</h2>
+  <p>
+    {{ SITE_NAME }} is an open wiki knowledge base where you can publish encyclopedia-style articles,
+    organize topics into categories, and collect bookmarks for offline reading. Every wiki page supports
+    rich markdown, multilingual translations, and structured sections so long-form reference material stays
+    easy to navigate. Whether you are documenting a hobby, curating research notes, or building a team
+    handbook, the platform keeps your content searchable and shareable.
+  </p>
+  <p>
+    Use the explore tab to browse the latest wiki articles, or jump to featured and trending pages when
+    you want a quick overview of popular topics. Shared links include live Open Graph previews so external
+    resources sit alongside your own writing. Import tools accept markdown, PDF, and other formats, which
+    helps you migrate existing notes into a single knowledge base without retyping everything from scratch.
+  </p>
+  <p>
+    The project draws inspiration from community encyclopedias such as
+    <a href="https://www.wikipedia.org/" rel="noopener noreferrer" target="_blank">Wikipedia</a>,
+    but {{ SITE_NAME }} is yours to customize: self-host it, connect your own database, and extend pages
+    with media blocks, AI summaries, and CMS plugins. Sign up to bookmark pages, contribute drafts, and
+    help the wiki grow with well-sourced, interlinked articles that readers can discover through search,
+    RSS feeds, and sitemaps.
+  </p>
 </section>
 
 <!-- Tabbed content -->

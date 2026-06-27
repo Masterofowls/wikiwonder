@@ -1,0 +1,17 @@
+{% if m %}
+{% if m.use_og %}
+<meta property="og:title" content="{{ m.og_title|default:m.title|escape }}">
+<meta property="og:description" content="{{ m.og_description|default:m.description|escape }}">
+{% if m.url %}<meta property="og:url" content="{{ m.url }}">{% endif %}
+<meta property="og:type" content="{{ m.object_type|default:'article' }}">
+<meta property="og:site_name" content="{{ m.site_name|escape }}">
+{% if m.image %}<meta property="og:image" content="{{ m.image }}">{% endif %}
+{% if m.locale %}<meta property="og:locale" content="{{ m.locale }}">{% endif %}
+{% endif %}
+{% if m.use_twitter %}
+<meta name="twitter:card" content="{{ m.twitter_type|default:'summary_large_image' }}">
+<meta name="twitter:title" content="{{ m.twitter_title|default:m.title|escape }}">
+<meta name="twitter:description" content="{{ m.twitter_description|default:m.description|escape }}">
+{% if m.image %}<meta name="twitter:image" content="{{ m.image }}">{% endif %}
+{% endif %}
+{% endif %}

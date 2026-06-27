@@ -1,0 +1,11 @@
+/* Rich media blocks — Wikipedia-style embeds */
+.wiki-media { margin: 1.5rem 0; }
+.wiki-media__img, .wiki-media__video { max-width: 100%; border-radius: 0.5rem; }
+.wiki-media__pdf, .wiki-media__html { width: 100%; min-height: 480px; border: 1px solid var(--border, #e5e7eb); border-radius: 0.5rem; }
+.wiki-media__caption { margin-top: 0.5rem; font-size: 0.875rem; color: var(--muted-foreground, #6b7280); }
+.wiki-media--code pre { overflow-x: auto; padding: 1rem; border-radius: 0.5rem; background: #1e1e1e; color: #d4d4d4; }
+.wiki-url-highlight { color: #2563eb; text-decoration: underline; text-underline-offset: 2px; }
+.wiki-url-highlight:hover { color: #1d4ed8; }
+.wiki-block { position: relative; }
+.wiki-annotations { border-left: 3px solid #2563eb; padding-left: 0.75rem; }
+.wiki-graph-render { min-height: 120px; padding: 1rem; background: var(--accent, #f3f4f6); border-radius: 0.5rem; }

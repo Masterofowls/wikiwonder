@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full"
+<html lang="{{ CURRENT_LANGUAGE|default:'en' }}" translate="yes" class="h-full"
   x-data="{
     dark: localStorage.getItem('theme') === 'dark' ||
           (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)
@@ -9,10 +9,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="{% block meta_description %}{{ SITE_NAME }} — Your personal Wikipedia{% endblock %}">
+  <meta name="description" content="{% block meta_description %}{% if seo %}{{ seo.description }}{% else %}{{ SITE_NAME }} — Your personal Wikipedia{% endif %}{% endblock %}">
   <meta name="theme-color" content="#1e40af">
-  <title>{% block title %}{{ SITE_NAME }}{% endblock %}</title>
-  {% load static tailwind_tags pwa wiki_tags sekizai_tags %}
+  <title>{% block title %}{% if seo %}{{ seo.title }}{% else %}{{ SITE_NAME }}{% endif %}{% endblock %}</title>
+  {% load static tailwind_tags pwa wiki_tags sekizai_tags seo_tags %}
+  {% seo_meta %}
   {% tailwind_css %}
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -20,9 +21,11 @@
   <link rel="manifest" href="{% url 'manifest' %}">
   <link rel="apple-touch-icon" href="{% static 'icons/icon-192.png' %}">
   <link rel="stylesheet" href="{% static 'css/wiki.css' %}">
+  <link rel="stylesheet" href="{% static 'css/media-blocks.css' %}">
   {% progressive_web_app_meta %}
   {% render_block "css" %}
   {% block extra_head %}{% endblock %}
+  {% seo_json_ld %}
 </head>
 <body class="min-h-full bg-background text-foreground antialiased flex flex-col">
   {% load cms_tags %}
@@ -55,6 +58,22 @@
       </nav>
 
       <div class="flex-1"></div>
+
+      <!-- Language switcher -->
+      {% if AVAILABLE_LANGUAGES|length > 1 %}
+      <form method="post" action="{% url 'wiki:set_language' %}" class="hidden md:flex items-center gap-1">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <label for="lang-select" class="sr-only">Language</label>
+        <select id="lang-select" name="language" onchange="this.form.submit()"
+          class="h-9 rounded-md border border-input bg-background px-2 text-sm"
+          title="Content language — browsers can auto-translate from here">
+          {% for code, name in AVAILABLE_LANGUAGES %}
+          <option value="{{ code }}" {% if code == CURRENT_LANGUAGE %}selected{% endif %}>{{ name }}</option>
+          {% endfor %}
+        </select>
+      </form>
+      {% endif %}
 
       <!-- Search (desktop) -->
       <div class="hidden lg:block flex-1 max-w-sm relative" x-data="instantSearch('{% url 'wiki:search' %}')" @click.outside="open = false">
@@ -134,6 +153,8 @@
     {% block content %}{% endblock %}
   </main>
 
+  {% include "wiki/partials/cookie_consent.html" %}
+
   <footer class="border-t border-border mt-auto">
     <div class="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 flex flex-col sm:flex-row justify-between items-center gap-4 text-sm text-muted-foreground">
       <p>&copy; {% now "Y" %} {{ SITE_NAME }}</p>
@@ -147,6 +168,8 @@
 
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.9/dist/cdn.min.js"></script>
   <script src="{% static 'js/app.js' %}"></script>
+  <script src="{% static 'js/share.js' %}"></script>
+  <script src="{% static 'js/media-blocks.js' %}"></script>
   {% render_block "js" %}
   {% block extra_js %}{% endblock %}
 </body>

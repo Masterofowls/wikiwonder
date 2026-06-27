@@ -81,23 +81,40 @@ docker compose --profile production run certbot certonly \
 
 ## Fly.io Deployment
 
+Production: **https://wikiwonder.fly.dev**
+
 ```bash
 # Install flyctl: https://fly.io/docs/hands-on/install-flyctl/
 fly auth login
-fly launch --no-deploy
-fly postgres create --name wikiwonder-db
-fly postgres attach wikiwonder-db
 
-# Set secrets (NEVER commit API keys)
-fly secrets set SECRET_KEY=$(python -c "import secrets; print(secrets.token_urlsafe(50))")
-fly secrets set CEREBRAS_API_KEY=your-key-here
+# First-time setup (app already exists as wikiwonder)
+fly launch --no-deploy   # skip if app exists
+
+# Required secrets (use Supabase Postgres DATABASE_URL in production)
+fly secrets set SECRET_KEY="$(python -c "import secrets; print(secrets.token_urlsafe(50))")"
 fly secrets set DEBUG=false
-fly secrets set ALLOWED_HOSTS=your-app.fly.dev
+fly secrets set ALLOWED_HOSTS=wikiwonder.fly.dev
+fly secrets set SITE_URL=https://wikiwonder.fly.dev
+fly secrets set META_SITE_PROTOCOL=https
+fly secrets set META_SITE_DOMAIN=wikiwonder.fly.dev
+fly secrets set DATABASE_URL="postgresql://..."   # Supabase connection string
 
-# Create volume for media uploads
-fly volumes create wikiwonder_media --size 1
+# Optional
+fly secrets set CEREBRAS_API_KEY=your-key-here
+fly secrets set SEO_SITE_KEYWORDS="wiki, knowledge base, encyclopedia, WikiWonder, articles"
 
-fly deploy
+# Media volume (iad region)
+fly volumes create wikiwonder_media --size 1 --region iad
+
+# Deploy
+fly deploy -a wikiwonder
+
+# Create admin user on production
+fly ssh console -a wikiwonder -C "sh -c 'DJANGO_SUPERUSER_USERNAME=admin DJANGO_SUPERUSER_EMAIL=you@example.com DJANGO_SUPERUSER_PASSWORD=your-password /app/.venv/bin/python manage.py createsuperuser --noinput'"
+
+# Logs and health
+fly logs -a wikiwonder
+curl https://wikiwonder.fly.dev/health/
 ```
 
 ## API Reference
