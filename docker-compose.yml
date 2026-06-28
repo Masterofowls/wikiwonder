@@ -1,89 +1,41 @@
 services:
-  web:
-    build: .
-    expose:
-      - "8000"
-    ports:
-      - "9000:8000"
-    env_file:
-      - .env
-    environment:
-      SECURE_PROXY_SSL_HEADER: HTTP_X_FORWARDED_PROTO,https
-    volumes:
-      - media_data:/app/media
-      - static_data:/app/staticfiles
-    depends_on:
-      db:
-        condition: service_healthy
-    restart: unless-stopped
-
   db:
     image: postgres:16-alpine
     environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
       POSTGRES_DB: wikiwonder
-      POSTGRES_USER: wikiwonder
-      POSTGRES_PASSWORD: wikiwonder
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U wikiwonder"]
-      interval: 5s
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
       timeout: 5s
       retries: 5
-    restart: unless-stopped
 
-  varnish:
-    image: varnish:7-alpine
-    expose:
-      - "80"
-    volumes:
-      - ./infra/varnish/default.vcl:/etc/varnish/default.vcl:ro
-    environment:
-      VARNISH_SIZE: 256M
-    depends_on:
-      - web
-    restart: unless-stopped
-
-  nginx:
-    build:
-      context: ./infra/nginx
-      dockerfile: Dockerfile
+  app:
+    build: .
     ports:
-      - "9080:80"
-      - "9443:443/tcp"
-      - "9443:443/udp"
+      - "9000:9000"
     environment:
-      DOMAIN: ${DOMAIN:-localhost}
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/wikiwonder
+      DIRECT_URL: postgresql://postgres:postgres@db:5432/wikiwonder
+      NEXT_PUBLIC_SITE_URL: http://localhost:9000
+      NEXT_PUBLIC_SITE_NAME: WikiWonder
+      NODE_ENV: production
+      CEREBRAS_API_KEY: ${CEREBRAS_API_KEY:-}
+      CEREBRAS_MODEL: ${CEREBRAS_MODEL:-gpt-oss-120b}
+      LARA_ACCESS_KEY_ID: ${LARA_ACCESS_KEY_ID:-}
+      LARA_ACCESS_KEY_SECRET: ${LARA_ACCESS_KEY_SECRET:-}
+      LARA_AUTO_TRANSLATE: ${LARA_AUTO_TRANSLATE:-false}
     volumes:
-      - static_data:/app/staticfiles:ro
-      - media_data:/app/media:ro
-      - certbot_conf:/etc/letsencrypt:ro
-      - certbot_www:/var/www/certbot:ro
+      - uploads:/app/public/uploads
     depends_on:
-      - varnish
-    restart: unless-stopped
-
-  certbot:
-    image: certbot/certbot:latest
-    volumes:
-      - certbot_conf:/etc/letsencrypt
-      - certbot_www:/var/www/certbot
-    profiles:
-      - production
-
-  certbot-renew:
-    image: certbot/certbot:latest
-    volumes:
-      - certbot_conf:/etc/letsencrypt
-      - certbot_www:/var/www/certbot
-    entrypoint: /bin/sh -c "trap exit TERM; while :; do certbot renew --quiet; sleep 12h; done"
-    profiles:
-      - production
-    restart: unless-stopped
+      db:
+        condition: service_healthy
 
 volumes:
   postgres_data:
-  media_data:
-  static_data:
-  certbot_conf:
-  certbot_www:
+  uploads:

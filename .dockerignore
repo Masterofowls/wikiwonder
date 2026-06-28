@@ -1,24 +1,38 @@
-.venv/
-__pycache__/
-*.py[cod]
-*.sqlite3
-db.sqlite3
-.env
-.env.*
-!.env.example
-.git/
+# Source control
+.git
 .gitignore
-.pytest_cache/
-.ruff_cache/
+
+# Dependencies (re-installed in Docker)
 node_modules/
-staticfiles/
-media/
-*.md
-!README.md
+
+# Build outputs
+.next/
+out/
+dist/
+
+# Environment
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Dev/test artefacts
+coverage/
+playwright-report/
+test-results/
+*.test.ts
+*.test.tsx
+*.spec.ts
+
+# Local uploads (use Fly volume in prod)
+public/uploads/
+
+# Docs and legacy code
 docs/
+legacy/
 tests/
-.cursor/
-terminals/
-*.log
+
+# Editor / OS
 .DS_Store
-Thumbs.db
+*.log
+.cursor/

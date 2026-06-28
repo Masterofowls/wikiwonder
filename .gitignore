@@ -1,55 +1,45 @@
-# Python
-__pycache__/
-*.py[cod]
-*.egg-info/
-.venv/
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+.next/
+out/
 dist/
 build/
-*.egg
 
-# Django
-*.log
-local_settings.py
-db.sqlite3
-media/
-staticfiles/
-static_collected/
-
-# Environment
+# Environment variables
 .env
 .env.local
-.env.*.local
+.env.development.local
+.env.test.local
+.env.production.local
+!.env.example
 
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
+# Database
+*.sqlite
+*.sqlite3
 
-# OS
-.DS_Store
-Thumbs.db
-
-# Docker
-.docker/
-
-# Tailwind
-theme/static/css/dist/
-node_modules/
-
-# Fly.io
-.fly/
+# Uploads
+public/uploads/
 
 # Testing
-.coverage
-htmlcov/
-.pytest_cache/
+coverage/
+playwright-report/
+test-results/
 
-# Secrets — never commit
+# Misc
+.DS_Store
 *.pem
-*.key
-/.venv
-/.ruff_cache
-/.pytest_cache
-/.cursor
-/__pycache__
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.cache/
+.turbo/
+
+# Legacy Django
+legacy/
+
+# Editor
+.cursor/
