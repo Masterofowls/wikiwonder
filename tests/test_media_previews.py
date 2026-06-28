@@ -77,6 +77,38 @@ class TestPreviews:
         assert "<img" in html
         assert "wiki-media" in html
 
+    def test_malformed_image_markdown_hides_orphan_text(self):
+        from apps.wiki.services.markdown import render_markdown
+
+        md = "!Telegram Messenger 1024/media/editor/4/telegram-messenger-1024.png"
+        html = render_markdown(md)
+        assert "<img" in html
+        assert "Telegram Messenger 1024" in html
+        assert "!Telegram" not in html
+        assert "<figcaption" not in html
+        assert "/media/editor/4/telegram-messenger-1024.png" not in html.replace(
+            'src="/media/editor/4/telegram-messenger-1024.png"', ""
+        )
+
+    def test_unfenced_wiki_video_renders_without_raw_text(self):
+        from apps.wiki.services.markdown import render_markdown
+
+        md = (
+            'wiki-video url="/media/editor/4/test.mp4" '
+            'title="226e464fba4686d8908ca64c5f504646 Ezgif.Com Gif Maker"'
+        )
+        html = render_markdown(md)
+        assert "<video" in html
+        assert "wiki-video url=" not in html
+        assert "<figcaption" not in html
+        assert "Ezgif" not in html
+
+    def test_summary_strips_media_embeds(self):
+        from apps.wiki.services.markdown import extract_summary, is_media_metadata
+
+        md = 'wiki-video url="/media/editor/4/test.mp4" title="Hash Ezgif Maker"'
+        assert is_media_metadata(extract_summary(md)) or extract_summary(md) == ""
+
 
 @pytest.mark.django_db
 class TestSEO:

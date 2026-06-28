@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static wiki_tags %}
 
-{% block title %}New page — {{ SITE_NAME }}{% endblock %}
+{% block title %}{% if edit_mode %}Edit {{ page.title }}{% else %}New page{% endif %} — {{ SITE_NAME }}{% endblock %}
 
 {% block extra_head %}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/easymde@2.18.0/dist/easymde.min.css">
@@ -9,15 +9,22 @@
 
 {% block content %}
 <section class="notion-create fade-in-up">
-  <form method="post" enctype="multipart/form-data" id="create-wiki-form" class="notion-create-form">
+  <form method="post" enctype="multipart/form-data" id="create-wiki-form" class="notion-create-form"
+    {% if edit_mode %}action="{{ form_action }}"{% endif %}>
     {% csrf_token %}
+    {% if not edit_mode %}
     <input type="hidden" name="raw_markdown" value="on">
     <input type="hidden" name="publish" value="on">
+    {% endif %}
 
-    <div id="cover-banner" class="notion-cover notion-cover--empty" aria-hidden="true">
+    <div id="cover-banner" class="notion-cover {% if edit_mode and page.cover_image %}notion-cover--filled{% else %}notion-cover--empty{% endif %}">
+      {% if edit_mode and page.cover_image %}
+      <img id="cover-preview-img" class="notion-cover-img" src="{{ page.cover_image.url }}" alt="">
+      {% else %}
       <img id="cover-preview-img" class="notion-cover-img hidden" alt="">
+      {% endif %}
       <label for="cover_image" class="notion-cover-btn" id="cover-label">
-        {% lucide "image" size=16 %} Add cover
+        {% lucide "image" size=16 %} {% if edit_mode and page.cover_image %}Change cover{% else %}Add cover{% endif %}
       </label>
       <input id="cover_image" name="cover_image" type="file" accept="image/*" class="sr-only">
     </div>
@@ -26,49 +33,87 @@
       <nav aria-label="Breadcrumb" class="notion-breadcrumb">
         <a href="{% url 'wiki:home' %}">Home</a>
         <span>/</span>
+        {% if edit_mode %}
+        <a href="{{ page.get_absolute_url }}">{{ page.title }}</a>
+        <span>/</span>
+        <span>Edit</span>
+        {% else %}
         <span>New page</span>
+        {% endif %}
       </nav>
 
       <input id="title" name="title" type="text" maxlength="255"
         class="notion-title-input"
         placeholder="Untitled"
+        value="{{ initial_title|default:'' }}"
         autocomplete="off">
 
       <p class="notion-created-meta">
+        {% if edit_mode %}
+        Editing · last updated {{ page.updated_at|date:"F j, Y" }}
+        {% else %}
         Created {% now "F j, Y" %} · saved automatically on publish
+        {% endif %}
       </p>
 
       <div class="notion-editor-wrap">
         <textarea id="content" name="content" rows="16"
-          placeholder="Start writing, or paste markdown…"></textarea>
+          placeholder="Start writing, or paste markdown…">{{ initial_content|default:'' }}</textarea>
         <p id="paste-hint" class="notion-hint hidden" role="status">Content ready — add a title and save.</p>
         <p id="upload-status" class="notion-hint hidden" role="status"></p>
-        <p class="notion-hint">Use the toolbar to upload images, video, or audio inline. You can also drag files into the editor or paste from clipboard.</p>
+        <p class="notion-hint">Toolbar: image, video, audio, PDF. Drag files in or paste from clipboard.</p>
       </div>
 
       <input type="file" id="editor-image-input" accept="image/*,.gif,.webp" class="hidden" aria-hidden="true">
       <input type="file" id="editor-video-input" accept="video/*" class="hidden" aria-hidden="true">
       <input type="file" id="editor-audio-input" accept="audio/*" class="hidden" aria-hidden="true">
+      <input type="file" id="editor-pdf-input" accept=".pdf,application/pdf" class="hidden" aria-hidden="true">
 
-      <details class="notion-advanced">
+      <details class="notion-advanced" {% if edit_mode %}open{% endif %}>
         <summary>Advanced options</summary>
         <div class="notion-advanced-body">
           <div>
             <label for="summary" class="text-sm font-medium">Summary</label>
             <input id="summary" name="summary" type="text" maxlength="500"
               class="notion-field-input"
+              value="{{ initial_summary|default:'' }}"
               placeholder="Optional preview text for cards and SEO">
           </div>
+          {% if edit_mode %}
+          <div>
+            <label for="change_summary" class="text-sm font-medium">Change summary</label>
+            <input id="change_summary" name="change_summary" type="text" maxlength="255"
+              class="notion-field-input"
+              placeholder="What changed in this edit?">
+          </div>
+          {% else %}
           <label class="inline-flex items-center gap-2 text-sm">
             <input type="checkbox" name="use_ai" class="rounded border-input">
             Format plain text with AI before saving
           </label>
+          <div>
+            <label for="wikipedia_source_url" class="text-sm font-medium">Wikipedia source URL (optional)</label>
+            <input id="wikipedia_source_url" type="url" placeholder="https://en.wikipedia.org/wiki/..."
+              class="mt-1 notion-field-input">
+            <p class="text-xs text-muted-foreground mt-1">
+              Paste article text, add the Wikipedia URL for citation links, then click Format Wikipedia.
+            </p>
+          </div>
+          <c-button type="button" variant="secondary" size="sm" id="wikipedia-paste-btn">
+            {% lucide "languages" size=14 %} Format Wikipedia paste
+          </c-button>
+          <p id="wikipedia-paste-status" class="notion-hint hidden" role="status"></p>
           <div>
             <label for="document" class="text-sm font-medium">Import document</label>
             <input id="document" name="document" type="file"
               accept=".md,.markdown,.txt,.pdf,.doc,.docx,.json,.csv,.xlsx,.html,.fb2"
               class="mt-1 block w-full text-sm">
           </div>
+          <p class="text-sm text-muted-foreground">
+            Or <a href="{% url 'wiki:import_url' %}" class="text-primary hover:underline">import from a URL</a>
+            (Wikipedia, RSS, docs, other wikis).
+          </p>
+          {% endif %}
           <div>
             <label for="media_files" class="text-sm font-medium">Attach files on save</label>
             <input id="media_files" name="media_files" type="file" multiple
@@ -79,12 +124,16 @@
       </details>
 
       <div class="notion-create-actions">
-        <c-button type="submit" class="btn-shimmer">Create page</c-button>
+        <c-button type="submit" class="btn-shimmer">{% if edit_mode %}Save changes{% else %}Create page{% endif %}</c-button>
+        {% if not edit_mode %}
         <c-button type="button" variant="secondary" size="sm" id="ai-format-btn"
           {% if not ai_configured %}disabled{% endif %}>
           {% lucide "sparkles" size=14 %} Format with AI
         </c-button>
-        <a href="{% url 'wiki:home' %}"><c-button type="button" variant="outline">Cancel</c-button></a>
+        {% endif %}
+        <a href="{% if edit_mode %}{{ page.get_absolute_url }}{% else %}{% url 'wiki:home' %}{% endif %}">
+          <c-button type="button" variant="outline">Cancel</c-button>
+        </a>
       </div>
       <p id="ai-status" class="notion-hint hidden" role="status"></p>
     </div>
@@ -95,7 +144,10 @@
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/easymde@2.18.0/dist/easymde.min.js"></script>
 <script>
-  window.WIKI_CREATE = { uploadUrl: "{% url 'wiki:editor_upload' %}" };
+  window.WIKI_CREATE = {
+    uploadUrl: "{% url 'wiki:editor_upload' %}",
+    pasteWikipediaUrl: "{% url 'wiki:paste_wikipedia' %}",
+  };
 </script>
 <script src="{% static 'js/create-wiki.js' %}"></script>
 {% endblock %}

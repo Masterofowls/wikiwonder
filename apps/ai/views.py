@@ -12,6 +12,7 @@ from rest_framework.response import Response
 
 from apps.ai.page_context import page_markdown_text
 from apps.ai.quota import QuotaExceededError, consume_quota, quota_status
+from apps.ai.ratelimit import AIRateLimitError, check_ai_burst_rate
 from apps.ai.services import get_ai_service
 from apps.wiki.models import WikiPage
 
@@ -96,8 +97,11 @@ def format_text(request):
         return err
 
     try:
+        check_ai_burst_rate(request.user)
         result = service.enrich_import(raw_text, title=title)
         return Response({**result, "model": service.model})
+    except AIRateLimitError as exc:
+        return Response({"error": str(exc)}, status=status.HTTP_429_TOO_MANY_REQUESTS)
     except Exception as exc:
         logger.exception("Cerebras format failed")
         return Response({"error": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
@@ -157,6 +161,7 @@ def page_summarize(request):
 
     try:
         with transaction.atomic():
+            check_ai_burst_rate(request.user)
             consume_quota(request.user)
             content = page_markdown_text(page)
             summary = service.summarize_wiki_page(page.title, content)
@@ -178,6 +183,8 @@ def page_summarize(request):
             },
             status=status.HTTP_429_TOO_MANY_REQUESTS,
         )
+    except AIRateLimitError as exc:
+        return Response({"error": str(exc)}, status=status.HTTP_429_TOO_MANY_REQUESTS)
     except Exception as exc:
         logger.exception("Page summarize failed")
         return Response({"error": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
@@ -205,6 +212,7 @@ def page_ask(request):
 
     try:
         with transaction.atomic():
+            check_ai_burst_rate(request.user)
             consume_quota(request.user)
             content = page_markdown_text(page)
             answer = service.ask_about_wiki_page(page.title, content, question)
@@ -227,6 +235,8 @@ def page_ask(request):
             },
             status=status.HTTP_429_TOO_MANY_REQUESTS,
         )
+    except AIRateLimitError as exc:
+        return Response({"error": str(exc)}, status=status.HTTP_429_TOO_MANY_REQUESTS)
     except Exception as exc:
         logger.exception("Page ask failed")
         return Response({"error": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
@@ -266,6 +276,7 @@ def chat(request):
         return err
 
     try:
+        check_ai_burst_rate(request.user)
         content = service.chat(
             messages,
             max_completion_tokens=request.data.get("max_completion_tokens"),
@@ -274,6 +285,8 @@ def chat(request):
             reasoning_effort=request.data.get("reasoning_effort"),
         )
         return Response({"content": content, "model": service.model})
+    except AIRateLimitError as exc:
+        return Response({"error": str(exc)}, status=status.HTTP_429_TOO_MANY_REQUESTS)
     except Exception as exc:
         logger.exception("Cerebras chat failed")
         return Response({"error": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)

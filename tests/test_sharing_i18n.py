@@ -54,6 +54,6 @@ def test_bookmarks_offline_urls(client, user, page):
 
 @pytest.mark.django_db
 def test_set_language(client):
-    res = client.post("/set-language/", {"language": "de", "next": "/"})
+    res = client.post("/set-language/", {"language": "ru", "next": "/"})
     assert res.status_code == 302
-    assert client.cookies["wikiwonder_lang"].value == "de"
+    assert client.cookies["wikiwonder_lang"].value == "ru"

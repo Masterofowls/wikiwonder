@@ -78,7 +78,6 @@ def wiki_page_seo(page) -> dict:
 
 def site_defaults() -> dict:
     keywords = _site_keywords()
-    primary = keywords[0] if keywords else settings.SITE_NAME
     description = _clip(
         getattr(
             settings,

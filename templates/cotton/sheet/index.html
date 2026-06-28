@@ -6,12 +6,12 @@
 
     showSheet() {
       this.open = true;
-      document.body.classList.add('overflow-hidden');
+      document.body.classList.add('overflow-hidden', 'mobile-nav-open');
     },
 
     hideSheet() {
       this.open = false;
-      document.body.classList.remove('overflow-hidden');
+      document.body.classList.remove('overflow-hidden', 'mobile-nav-open');
     }
   }"
   x-init="
@@ -24,6 +24,7 @@
     })
   "
   @show-sheet.window="showSheet()"
+  @hide-mobile-sheet.window="hideSheet()"
   @keydown.escape.window="if (open) hideSheet()"
   {{ attrs }}
 >

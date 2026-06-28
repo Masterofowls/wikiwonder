@@ -6,6 +6,7 @@ import re
 from django.utils.html import escape
 
 from apps.previews.services import build_preview, detect_type
+from apps.wiki.services.embeds import repair_unfenced_wiki_embeds
 
 EMBEDABLE = frozenset({"image", "gif", "video", "audio", "pdf"})
 MEDIA_URL_HINT = re.compile(r"/media/|/static/|\.(?:mp4|webm|mov|mp3|wav|ogg|m4a|gif|png|jpe?g|webp|svg|pdf)(?:\?|$)", re.I)
@@ -14,6 +15,30 @@ HTML_MEDIA_ANCHOR = re.compile(
     r'<a\b([^>]*?\bhref="([^"]+)"[^>]*)>(.*?)</a>',
     re.IGNORECASE | re.DOTALL,
 )
+MALFORMED_IMAGE = re.compile(
+    r"!(?!\[)([^\n\[\]/]+?)(/media/[^\s<>\)\]]+)",
+    re.IGNORECASE,
+)
+
+
+def repair_malformed_image_urls(text: str) -> str:
+    """Fix `!Title/media/path.png` → `![Title](/media/path.png)` before bare-URL promotion."""
+
+    def repl(match: re.Match) -> str:
+        title = match.group(1).strip()
+        url = match.group(2).strip()
+        return f"![{title}]({url})"
+
+    return MALFORMED_IMAGE.sub(repl, text)
+
+
+def normalize_media_markdown(text: str) -> str:
+    """Normalize common broken inline media markdown before save or render."""
+    if not text:
+        return text
+    text = repair_unfenced_wiki_embeds(text)
+    text = repair_malformed_image_urls(text)
+    return text
 
 
 def media_kind(url: str) -> str | None:
@@ -53,6 +78,7 @@ def promote_media_links_markdown(text: str) -> str:
 
 def promote_bare_media_urls(text: str) -> str:
     """Turn bare /media/... URLs into embeds before generic URL linkification."""
+    text = repair_malformed_image_urls(text)
 
     def repl(match: re.Match) -> str:
         url = match.group(1).rstrip(".,);]")
@@ -96,12 +122,12 @@ def wrap_standalone_media_images(html: str) -> str:
             return match.group(0)
         src = match.group(3)
         alt_match = re.search(r'alt="([^"]*)"', attrs)
-        alt = escape(alt_match.group(1) if alt_match else "Media")
+        alt = alt_match.group(1) if alt_match else ""
+        attrs = re.sub(r'\s*alt="[^"]*"', "", attrs, count=1)
         kind = media_kind(src) or "image"
         return (
             f'<figure class="wiki-media wiki-media--{kind}">'
-            f'<img{attrs} class="wiki-media__img" loading="lazy">'
-            f'<figcaption class="wiki-media__caption">{alt}</figcaption></figure>'
+            f'<img{attrs} class="wiki-media__img" loading="lazy" alt="{escape(alt)}"></figure>'
         )
 
     return pattern.sub(repl, html)

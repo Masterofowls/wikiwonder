@@ -246,3 +246,39 @@ class PageRevision(models.Model):
 
     def __str__(self):
         return f"Rev {self.pk} — {self.page.title}"
+
+
+class EditSuggestion(models.Model):
+    """Public edit proposal — staff merges or rejects."""
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending review"
+        APPROVED = "approved", "Approved"
+        REJECTED = "rejected", "Rejected"
+
+    page = models.ForeignKey(WikiPage, on_delete=models.CASCADE, related_name="edit_suggestions")
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="edit_suggestions"
+    )
+    title = models.CharField(max_length=255)
+    content = models.TextField()
+    change_summary = models.CharField(max_length=255, blank=True)
+    status = models.CharField(
+        max_length=20, choices=Status.choices, default=Status.PENDING, db_index=True
+    )
+    reviewer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="reviewed_suggestions",
+    )
+    review_note = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Suggestion for {self.page.title} by {self.author}"

@@ -101,6 +101,29 @@
   </p>
 </section>
 
+{% if category_spotlights %}
+<section class="mb-10 fade-in-up stagger-1">
+  <h2 class="text-xl font-display font-semibold mb-4 flex items-center gap-2">
+    {% lucide "layers" size=20 css_class="text-primary" %} Browse by category
+  </h2>
+  <div class="space-y-8">
+    {% for spot in category_spotlights %}
+    <div>
+      <div class="flex items-center justify-between mb-3">
+        <a href="{% url 'wiki:category' spot.category.slug %}" class="font-medium hover:text-primary">{{ spot.category.name }}</a>
+        <a href="{% url 'wiki:category' spot.category.slug %}" class="text-sm text-muted-foreground hover:text-foreground">View all</a>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {% for page in spot.pages %}
+        {% include "wiki/partials/image_card.html" with page=page %}
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
 <!-- Tabbed content -->
 <c-tabs default_value="explore" class="fade-in-up stagger-2">
   <c-tabs.list class="inline-flex h-10 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground w-full sm:w-auto mb-6">

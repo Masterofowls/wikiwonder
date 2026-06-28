@@ -28,9 +28,39 @@ ICONS = {
 }
 
 
+@register.simple_tag
+def wiki_responsive_img(field, alt="", css_class="wiki-media__img", loading="lazy") -> str:
+    """Render responsive img with easy_thumbnails when available."""
+    if not field:
+        return ""
+    try:
+        from easy_thumbnails.files import get_thumbnailer
+
+        thumb = get_thumbnailer(field)
+        small = thumb.get_thumbnail({"size": (480, 0), "crop": False})
+        large = thumb.get_thumbnail({"size": (1200, 0), "crop": False})
+        src = field.url
+        return mark_safe(
+            f'<img src="{src}" srcset="{small.url} 480w, {large.url} 1200w" '
+            f'sizes="(max-width: 768px) 100vw, 800px" alt="{alt}" '
+            f'class="{css_class}" loading="{loading}">'
+        )
+    except Exception:
+        return mark_safe(
+            f'<img src="{field.url}" alt="{alt}" class="{css_class}" loading="{loading}">'
+        )
+
+
 @register.filter(name="render_md")
 def render_md(value):
     return render_markdown(value)
+
+
+@register.filter(name="is_media_metadata")
+def is_media_metadata_filter(value: str) -> bool:
+    from apps.wiki.services.markdown import is_media_metadata
+
+    return is_media_metadata(value or "")
 
 
 @register.simple_tag

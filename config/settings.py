@@ -153,20 +153,14 @@ USE_TZ = True
 
 LANGUAGES = [
     ("en", "English"),
-    ("de", "Deutsch"),
-    ("fr", "Français"),
-    ("es", "Español"),
-    ("uk", "Українська"),
+    ("ru", "Русский"),
 ]
 
 MODELTRANSLATION_DEFAULT_LANGUAGE = "en"
-MODELTRANSLATION_LANGUAGES = ("en", "de", "fr", "es", "uk")
+MODELTRANSLATION_LANGUAGES = ("en", "ru")
 MODELTRANSLATION_FALLBACK_LANGUAGES = {
     "default": ("en",),
-    "de": ("en",),
-    "fr": ("en",),
-    "es": ("en",),
-    "uk": ("en",),
+    "ru": ("en",),
 }
 
 # django-rosetta — PO file translation UI (staff only)
@@ -306,6 +300,14 @@ CEREBRAS_TEMPERATURE = env.float("CEREBRAS_TEMPERATURE", default=0.2)
 CEREBRAS_TOP_P = env.float("CEREBRAS_TOP_P", default=1.0)
 CEREBRAS_REASONING_EFFORT = env("CEREBRAS_REASONING_EFFORT", default="medium")
 AI_DAILY_REQUEST_LIMIT = env.int("AI_DAILY_REQUEST_LIMIT", default=10)
+AI_BURST_HOURLY_LIMIT = env.int("AI_BURST_HOURLY_LIMIT", default=60)
+
+# Lara Translate — automatic EN → RU wiki page translations
+LARA_ACCESS_KEY_ID = env("LARA_ACCESS_KEY_ID", default="")
+LARA_ACCESS_KEY_SECRET = env("LARA_ACCESS_KEY_SECRET", default="")
+LARA_AUTO_TRANSLATE = env.bool("LARA_AUTO_TRANSLATE", default=True)
+LARA_SOURCE_LANGUAGE = env("LARA_SOURCE_LANGUAGE", default="en")
+LARA_TARGET_LANGUAGES = env.list("LARA_TARGET_LANGUAGES", default=["ru"])
 
 # REST Framework
 REST_FRAMEWORK = {

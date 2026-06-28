@@ -48,6 +48,8 @@ dependencies = [
     "django-meta>=2.5.1",
     "django-check-seo>=2.1.1",
     "beautifulsoup4>=4.15.0",
+    "html2text>=2025.4.15",
+    "lara-sdk>=1.11.2",
 ]
 
 [dependency-groups]

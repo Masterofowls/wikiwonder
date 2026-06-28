@@ -90,5 +90,10 @@ class CreateWikiPageView(LoginRequiredMixin, TemplateView):
 
         attach_files_to_page(page, media_files)
 
-        messages.success(request, f'Wiki page “{page.title}” created.')
+        page.refresh_from_db()
+        messages.success(
+            request,
+            f'Wiki page “{page.title}” created.'
+            + (" Russian translation generated." if page.title_ru else ""),
+        )
         return redirect(page.get_absolute_url())

@@ -9,7 +9,6 @@ def hreflang_links(request, canonical_path: str) -> list[dict]:
     path = canonical_path if canonical_path.startswith("/") else f"/{canonical_path}"
     links = []
     for code, _name in settings.LANGUAGES:
-        prefix = f"/{code}" if settings.USE_I18N and len(settings.LANGUAGES) > 1 else ""
         # Wiki routes are not prefixed yet; hreflang uses query ?lang= for now
         href = f"{base}{path}?lang={code}"
         links.append({"code": code, "href": href})

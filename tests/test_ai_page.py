@@ -38,8 +38,8 @@ class TestPageAI:
         assert response.status_code in (401, 403)
 
     def test_summarize_page(self, client, django_user_model):
-        from apps.wiki.services.pages import create_page_from_markdown
         from apps.wiki.models import WikiPage
+        from apps.wiki.services.pages import create_page_from_markdown
 
         user = django_user_model.objects.create_user("reader", password="x")
         page = create_page_from_markdown(
@@ -68,8 +68,8 @@ class TestPageAI:
         assert data["quota"]["used"] == 1
 
     def test_ask_page(self, client, django_user_model):
-        from apps.wiki.services.pages import create_page_from_markdown
         from apps.wiki.models import WikiPage
+        from apps.wiki.services.pages import create_page_from_markdown
 
         user = django_user_model.objects.create_user("asker", password="x")
         page = create_page_from_markdown(

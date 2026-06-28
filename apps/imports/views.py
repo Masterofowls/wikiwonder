@@ -6,6 +6,12 @@ from rest_framework.response import Response
 from apps.imports.export import export_http_response, export_page, export_pages_queryset
 from apps.imports.formats import parse_uploaded_file
 from apps.imports.services import import_text_as_wiki_page, preview_import
+from apps.imports.sources.fetch import FetchError
+from apps.imports.url_import import (
+    get_supported_sources,
+    import_url_as_wiki_page,
+    preview_url_import,
+)
 from apps.wiki.models import WikiPage
 from apps.wiki.serializers import WikiPageDetailSerializer
 
@@ -102,3 +108,64 @@ def export_bulk(request):
     if request.GET.get("download") == "1":
         return export_http_response(payload)
     return Response(payload)
+
+
+@api_view(["GET"])
+def supported_sources(request):
+    """List supported remote import source types."""
+    return Response({"sources": get_supported_sources()})
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def preview_url(request):
+    """Preview import from a remote URL (Wikipedia, RSS, docs, web)."""
+    url = request.data.get("url", "").strip()
+    source_type = request.data.get("source_type", "auto")
+    use_ai = request.data.get("use_ai", False)
+    max_entries = int(request.data.get("max_feed_entries", 25))
+
+    if not url:
+        return Response({"error": "url is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        result = preview_url_import(
+            url,
+            source_type=source_type,
+            use_ai=use_ai,
+            max_feed_entries=max(1, min(max_entries, 50)),
+        )
+    except FetchError as exc:
+        return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+    return Response(result)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def import_url_view(request):
+    """Fetch a remote URL and create a wiki page."""
+    url = request.data.get("url", "").strip()
+    title = request.data.get("title", "").strip()
+    source_type = request.data.get("source_type", "auto")
+    use_ai = request.data.get("use_ai", False)
+    publish = request.data.get("publish", False)
+    max_entries = int(request.data.get("max_feed_entries", 25))
+
+    if not url:
+        return Response({"error": "url is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        page = import_url_as_wiki_page(
+            url,
+            title=title,
+            author=request.user,
+            source_type=source_type,
+            use_ai=use_ai,
+            publish=publish,
+            max_feed_entries=max(1, min(max_entries, 50)),
+        )
+    except FetchError as exc:
+        return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+    data = WikiPageDetailSerializer(page, context={"request": request}).data
+    return Response(data, status=status.HTTP_201_CREATED)

@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% load static wiki_tags %}
+
+{% block title %}Suggest edit — {{ page.title }}{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/easymde@2.18.0/dist/easymde.min.css">
+{% endblock %}
+
+{% block content %}
+<section class="notion-create fade-in-up max-w-3xl mx-auto">
+  <h1 class="text-2xl font-display font-bold mb-2">Suggest an edit</h1>
+  <p class="text-muted-foreground mb-6">
+    Propose changes to <a href="{{ page.get_absolute_url }}" class="text-primary hover:underline">{{ page.title }}</a>.
+    Staff will review before publishing.
+  </p>
+  <form method="post" id="create-wiki-form" class="notion-create-form border rounded-xl p-6">
+    {% csrf_token %}
+    <label for="title" class="text-sm font-medium">Title</label>
+    <input id="title" name="title" type="text" maxlength="255" class="notion-field-input mb-4 w-full"
+      value="{{ initial_title }}">
+    <label for="change_summary" class="text-sm font-medium">Summary of your changes</label>
+    <input id="change_summary" name="change_summary" type="text" maxlength="255"
+      class="notion-field-input mb-4 w-full" placeholder="Fixed typo in introduction…">
+    <label for="content" class="text-sm font-medium">Full page markdown</label>
+    <textarea id="content" name="content" rows="18" class="w-full mt-1">{{ initial_content }}</textarea>
+    <div class="flex gap-3 mt-6">
+      <c-button type="submit">Submit suggestion</c-button>
+      <a href="{{ page.get_absolute_url }}"><c-button type="button" variant="outline">Cancel</c-button></a>
+    </div>
+  </form>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/easymde@2.18.0/dist/easymde.min.js"></script>
+<script src="{% static 'js/create-wiki.js' %}"></script>
+{% endblock %}

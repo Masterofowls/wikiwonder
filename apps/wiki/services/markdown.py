@@ -5,13 +5,16 @@ import bleach
 import markdown
 from django.utils.safestring import mark_safe
 
-from apps.wiki.services.embeds import highlight_urls, process_embeds
+from apps.wiki.services.citations import enrich_citation_html
+from apps.wiki.services.embeds import highlight_urls, process_embeds, repair_unfenced_wiki_embeds
 from apps.wiki.services.media_links import (
+    normalize_media_markdown,
     promote_bare_media_urls,
     promote_media_links_markdown,
     replace_media_anchors,
     wrap_standalone_media_images,
 )
+from apps.wiki.services.wikilinks import linkify_internal_pages, process_wikilink_syntax
 
 ALLOWED_TAGS = bleach.sanitizer.ALLOWED_TAGS | {
     "h1", "h2", "h3", "h4", "h5", "h6",
@@ -24,7 +27,7 @@ ALLOWED_TAGS = bleach.sanitizer.ALLOWED_TAGS | {
 }
 ALLOWED_ATTRIBUTES = {
     **bleach.sanitizer.ALLOWED_ATTRIBUTES,
-    "a": ["href", "title", "rel", "class", "target", "data-url"],
+    "a": ["href", "title", "rel", "class", "target", "data-url", "data-cite"],
     "img": ["src", "alt", "title", "width", "height", "loading", "class"],
     "code": ["class"],
     "pre": ["class"],
@@ -39,11 +42,53 @@ ALLOWED_ATTRIBUTES = {
     "figcaption": ["class"],
 }
 
+WIKI_EMBED_LINE = re.compile(
+    r"wiki-(?:video|audio|pdf|image|gif|code|graph|embed|media|url)\s+(?:\w+=\"[^\"]*\"\s*)+",
+    re.IGNORECASE,
+)
+ORPHAN_MEDIA_PARA = re.compile(
+    r"<p>\s*wiki-(?:video|audio|pdf|image|gif|code|graph|embed|media|url)\s+[^<]+\s*</p>",
+    re.IGNORECASE,
+)
 
-def render_markdown(text: str) -> str:
-    """Convert markdown to sanitized HTML with embeds and URL highlights."""
+
+def sanitize_summary_text(text: str) -> str:
+    """Remove media embed syntax so summaries stay readable."""
     if not text:
         return ""
+    cleaned = repair_unfenced_wiki_embeds(text)
+    cleaned = re.sub(r"```wiki-.*?```", " ", cleaned, flags=re.DOTALL | re.IGNORECASE)
+    cleaned = re.sub(r"!\[[^\]]*\]\([^)]+\)", " ", cleaned)
+    cleaned = WIKI_EMBED_LINE.sub(" ", cleaned)
+    cleaned = re.sub(r"/media/\S+", " ", cleaned)
+    plain = re.sub(r"[#*`_\[\]()\"]", "", cleaned)
+    plain = re.sub(r"\s+", " ", plain).strip()
+    return plain
+
+
+def is_media_metadata(text: str) -> bool:
+    """True when text is only upload filenames / embed attrs (not a real summary)."""
+    if not text:
+        return False
+    stripped = text.strip()
+    if WIKI_EMBED_LINE.search(stripped):
+        return True
+    if stripped.lower().startswith("wiki-"):
+        return True
+    if "/media/" in stripped and not re.search(r"[.!?]", stripped):
+        tokens = stripped.split()
+        if len(tokens) <= 12 and sum(1 for t in tokens if t.startswith("/media/")) >= 1:
+            return True
+    return False
+
+
+def render_markdown(text: str, *, page_slug: str = "") -> str:
+    """Convert markdown to sanitized HTML with embeds, citations, and link highlights."""
+    if not text:
+        return ""
+    text = normalize_media_markdown(text)
+    text = process_wikilink_syntax(text)
+    text = linkify_internal_pages(text, exclude_slug=page_slug)
     text = promote_media_links_markdown(text)
     text = promote_bare_media_urls(text)
     text = highlight_urls(text)
@@ -54,6 +99,7 @@ def render_markdown(text: str) -> str:
     )
     html = replace_media_anchors(html)
     html = wrap_standalone_media_images(html)
+    html = enrich_citation_html(html)
     html = re.sub(
         r'<a href="(https?://[^"]+)"',
         (
@@ -68,13 +114,15 @@ def render_markdown(text: str) -> str:
         html,
     )
     clean = bleach.clean(html, tags=ALLOWED_TAGS, attributes=ALLOWED_ATTRIBUTES)
+    clean = ORPHAN_MEDIA_PARA.sub("", clean)
     return mark_safe(clean)
 
 
 def extract_summary(text: str, max_length: int = 200) -> str:
     """Extract plain-text summary from markdown."""
-    plain = re.sub(r"[#*`_\[\]()]", "", text)
-    plain = re.sub(r"\s+", " ", plain).strip()
+    plain = sanitize_summary_text(text)
+    if not plain or is_media_metadata(plain):
+        return ""
     if len(plain) <= max_length:
         return plain
     return plain[: max_length - 3].rsplit(" ", 1)[0] + "..."

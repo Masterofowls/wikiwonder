@@ -1,5 +1,31 @@
 {% load wiki_tags %}
 <div class="flex flex-wrap items-center gap-2" data-page-actions data-share-url="{{ share_api_url|default:'' }}">
+  {% if can_edit %}
+  <a href="{% url 'wiki:edit_page' page.slug %}">
+    <c-button variant="secondary" size="sm">{% lucide "file-text" size=14 %} Edit</c-button>
+  </a>
+  {% if lara_configured %}
+  <form method="post" action="{% url 'wiki:generate_translation' page.slug %}" class="inline-flex">
+    {% csrf_token %}
+    <c-button type="submit" variant="outline" size="sm" title="Generate Russian translation with Lara Translate">
+      {% lucide "languages" size=14 %}
+      {% if has_ru_translation %}Regenerate{% else %}Translate{% endif %}
+    </c-button>
+  </form>
+  {% endif %}
+  {% elif user.is_authenticated %}
+  <a href="{% url 'wiki:suggest_edit' page.slug %}">
+    <c-button variant="outline" size="sm">Suggest edit</c-button>
+  </a>
+  {% endif %}
+  <div class="relative inline-flex" x-data="{ open: false }">
+    <c-button type="button" variant="outline" size="sm" @click.stop="open = !open" :aria-expanded="open.toString()">Export</c-button>
+    <div x-show="open" x-cloak @click="if ($event.target.closest('a')) open = false" class="absolute top-full right-0 z-50 mt-1 min-w-[9rem] rounded-md border border-border bg-popover shadow-lg py-1">
+      <a href="{% url 'wiki:page_export' page.slug %}?format=md" class="block px-3 py-2 text-sm hover:bg-accent">Markdown</a>
+      <a href="{% url 'wiki:page_export' page.slug %}?format=html" class="block px-3 py-2 text-sm hover:bg-accent">HTML</a>
+      <a href="{% url 'wiki:page_export' page.slug %}?format=txt" class="block px-3 py-2 text-sm hover:bg-accent">Plain text</a>
+    </div>
+  </div>
   {% include "wiki/partials/page_ai_panel.html" %}
   <c-button type="button" variant="outline" size="sm" data-share-open title="Share this page">
     {% lucide "share-2" size=14 %} Share

@@ -10,7 +10,7 @@
     x-transition:leave="ease-in duration-200"
     x-transition:leave-start="opacity-100"
     x-transition:leave-end="opacity-0"
-    class="fixed inset-0 z-[100] bg-background/80 backdrop-blur-sm"
+    class="fixed inset-0 z-[9990] bg-background/80 backdrop-blur-sm"
     aria-hidden="true"
     x-cloak
     @click="hideSheet()"
@@ -19,7 +19,7 @@
   <!-- Panel -->
   <div
     x-show="open"
-    class="fixed z-[101] flex flex-col bg-background shadow-xl border-border
+    class="fixed z-[9991] flex flex-col bg-background shadow-xl border-border
       {% if side == 'right' %}inset-y-0 right-0 h-full border-l {% if not class or 'w-' not in class %}w-[min(100vw-2rem,20rem)]{% endif %}
       {% elif side == 'left' %}inset-y-0 left-0 h-full border-r {% if not class or 'w-' not in class %}w-[min(100vw-2rem,20rem)]{% endif %}
       {% elif side == 'top' %}inset-x-0 top-0 w-full border-b {% if not class or 'h-' not in class %}h-auto max-h-[85vh]{% endif %}
@@ -34,8 +34,9 @@
     x-transition:leave-end="{% if side == 'right' %}translate-x-full{% elif side == 'left' %}-translate-x-full{% elif side == 'top' %}-translate-y-full{% elif side == 'bottom' %}translate-y-full{% endif %}"
     role="dialog"
     aria-modal="true"
+    aria-label="Navigation menu"
+    data-mobile-sheet-panel
     x-cloak
-    @click.away="hideSheet()"
     {{ attrs }}
   >
     <c-button
@@ -52,7 +53,7 @@
       <span class="sr-only">Close</span>
     </c-button>
 
-    <div class="flex-1 overflow-y-auto p-5 pt-12">
+    <div class="flex-1 overflow-y-auto overscroll-contain mobile-sheet-body p-5 pt-12">
       {{ slot }}
     </div>
   </div>

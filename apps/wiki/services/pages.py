@@ -1,7 +1,7 @@
-"""Wiki page creation and section sync."""
+"""Wiki page creation, update, section sync, and revision history."""
 from django.utils import timezone
 
-from apps.wiki.models import WikiPage, WikiSection
+from apps.wiki.models import PageRevision, WikiPage, WikiSection
 from apps.wiki.services.markdown import extract_summary, split_markdown_into_sections
 
 
@@ -29,6 +29,7 @@ def create_page_from_markdown(
     if split_sections:
         sync_page_sections(page, content)
 
+    _maybe_auto_translate(page)
     return page
 
 
@@ -51,8 +52,31 @@ def sync_page_sections(page: WikiPage, content: str | None = None) -> list[WikiS
     return created
 
 
-def update_page_content(page: WikiPage, content: str, *, resplit: bool = True) -> WikiPage:
-    """Update page markdown and optionally re-split sections."""
+def save_page_revision(page: WikiPage, *, editor, change_summary: str = "") -> PageRevision:
+    return PageRevision.objects.create(
+        page=page,
+        editor=editor,
+        title=page.title,
+        content=page.content or "",
+        change_summary=change_summary[:255],
+    )
+
+
+def update_page_content(
+    page: WikiPage,
+    content: str,
+    *,
+    editor=None,
+    change_summary: str = "",
+    resplit: bool = True,
+) -> WikiPage:
+    """Update page markdown, save revision, and optionally re-split sections."""
+    if editor and (page.content or "") != content:
+        save_page_revision(page, editor=editor, change_summary=change_summary)
+
+    from apps.wiki.services.media_links import normalize_media_markdown
+
+    content = normalize_media_markdown(content)
     page.content = content
     page.summary = extract_summary(content)
     page.save(update_fields=["content", "summary", "updated_at"])
@@ -60,4 +84,12 @@ def update_page_content(page: WikiPage, content: str, *, resplit: bool = True) -
     if resplit:
         sync_page_sections(page, content)
 
+    _maybe_auto_translate(page, force=True)
     return page
+
+
+def _maybe_auto_translate(page: WikiPage, *, force: bool = False) -> None:
+    """Generate modeltranslation fields via Lara Translate when configured."""
+    from apps.wiki.services.lara_translate import auto_translate_wiki_page
+
+    auto_translate_wiki_page(page, force=force)

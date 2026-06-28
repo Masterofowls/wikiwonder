@@ -34,6 +34,54 @@ def _meta(title: str = "", description: str = "", **extra) -> dict:
     return {"title": title, "description": description, **extra}
 
 
+_HASH_IN_TITLE = re.compile(r"[a-f0-9]{8,}", re.IGNORECASE)
+_AUTO_TITLE_HINT = re.compile(
+    r"(ezgif|gif[\s-]?maker|screenshot|^img_|^dsc|^photo\d|untitled|download)",
+    re.IGNORECASE,
+)
+
+
+def _filename_stem(url: str) -> str:
+    if not url:
+        return ""
+    return Path(urlparse(url).path).stem.lower()
+
+
+def should_show_media_caption(title: str, description: str = "", url: str = "") -> bool:
+    """Hide captions derived from upload filenames; keep author-written labels."""
+    if description and description.strip():
+        return True
+    label = (title or "").strip()
+    if not label or label in {"Preview", "Media", "Video", "Audio", "Image", "Photo"}:
+        return False
+    if _HASH_IN_TITLE.search(label):
+        return False
+    if _AUTO_TITLE_HINT.search(label):
+        return False
+    stem = _filename_stem(url)
+    if stem:
+        stem_flat = re.sub(r"[-_.]+", " ", stem).lower()
+        label_flat = re.sub(r"[-_.]+", " ", label).lower()
+        if stem_flat in label_flat or label_flat in stem_flat:
+            return False
+    return True
+
+
+def _media_caption_html(title: str, description: str, url: str = "", *, rich: bool = False) -> str:
+    if not should_show_media_caption(title, description, url):
+        return ""
+    safe_title = escape(title)
+    safe_desc = escape(description or "")
+    if rich and safe_desc:
+        return (
+            f'<figcaption class="wiki-media__caption"><strong>{safe_title}</strong>'
+            f"<p>{safe_desc}</p></figcaption>"
+        )
+    if rich:
+        return f'<figcaption class="wiki-media__caption"><strong>{safe_title}</strong></figcaption>'
+    return f'<figcaption class="wiki-media__caption">{safe_title}</figcaption>'
+
+
 def build_preview(
     *,
     url: str = "",
@@ -55,8 +103,7 @@ def build_preview(
         html_out = (
             f'<figure class="wiki-media wiki-media--{kind}">'
             f'<img src="{escape(src)}" alt="{safe_title}" loading="lazy" class="wiki-media__img" />'
-            f'<figcaption class="wiki-media__caption"><strong>{safe_title}</strong>'
-            f"{f'<p>{safe_desc}</p>' if safe_desc else ''}</figcaption></figure>"
+            f"{_media_caption_html(title, description, src, rich=True)}</figure>"
         )
         return {"type": kind, "html": html_out, "meta": _meta(title, description), "embed_url": src}
 
@@ -67,7 +114,7 @@ def build_preview(
         html_out = (
             f'<figure class="wiki-media wiki-media--video">'
             f'<video controls class="wiki-media__video" src="{escape(src)}"{poster_attr}></video>'
-            f'<figcaption class="wiki-media__caption">{safe_title}</figcaption></figure>'
+            f"{_media_caption_html(title, description, src)}</figure>"
         )
         return {"type": kind, "html": html_out, "meta": _meta(title, description), "embed_url": src}
 
@@ -76,7 +123,7 @@ def build_preview(
         html_out = (
             f'<figure class="wiki-media wiki-media--audio">'
             f'<audio controls class="wiki-media__audio" src="{escape(src)}"></audio>'
-            f'<figcaption class="wiki-media__caption">{safe_title}</figcaption></figure>'
+            f"{_media_caption_html(title, description, src)}</figure>"
         )
         return {"type": kind, "html": html_out, "meta": _meta(title, description), "embed_url": src}
 
@@ -86,7 +133,7 @@ def build_preview(
             f'<figure class="wiki-media wiki-media--pdf">'
             f'<iframe class="wiki-media__pdf" src="{escape(src)}" title="{safe_title}" '
             f'loading="lazy"></iframe>'
-            f'<figcaption class="wiki-media__caption">{safe_title}</figcaption></figure>'
+            f"{_media_caption_html(title, description, src)}</figure>"
         )
         return {"type": kind, "html": html_out, "meta": _meta(title, description), "embed_url": src}
 
@@ -130,7 +177,7 @@ def build_preview(
             f'<figure class="wiki-media wiki-media--graph" data-graph-type="{escape(graph_type)}">'
             f'<pre class="wiki-graph-source">{escape(dsl)}</pre>'
             f'<div class="wiki-graph-render" data-graph-dsl="{escape(dsl)}"></div>'
-            f'<figcaption class="wiki-media__caption">{safe_title}</figcaption></figure>'
+            f"{_media_caption_html(title, description, url)}</figure>"
         )
         return {"type": kind, "html": html_out, "meta": _meta(title, description, graph_type=graph_type)}
 

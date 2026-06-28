@@ -6,6 +6,11 @@
 .prose .wiki-media, .notion-prose .wiki-media { margin: 1.5rem 0; }
 .prose .wiki-media__video, .prose .wiki-media__audio { margin: 0; }
 .wiki-media__pdf, .wiki-media__html { width: 100%; min-height: 480px; border: 1px solid var(--border, #e5e7eb); border-radius: 0.5rem; }
+@media (max-width: 767px) {
+  .wiki-media__video { max-height: 50vh; }
+  .wiki-media__pdf, .wiki-media__html { min-height: 60vh; max-height: 70vh; }
+  .wiki-media { margin: 1rem 0; }
+}
 .wiki-media__caption { margin-top: 0.5rem; font-size: 0.875rem; color: var(--muted-foreground, #6b7280); }
 .wiki-media--code pre { overflow-x: auto; padding: 1rem; border-radius: 0.5rem; background: #1e1e1e; color: #d4d4d4; }
 .wiki-url-highlight { color: #2563eb; text-decoration: underline; text-underline-offset: 2px; }

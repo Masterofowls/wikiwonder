@@ -17,8 +17,8 @@
 {% block content %}
 <article class="notion-page wiki-page fade-in-up" data-page-slug="{{ page.slug }}">
   {% if page.cover_image %}
-  <div class="notion-cover notion-cover--filled">
-    <img src="{{ page.cover_image.url }}" alt="" class="notion-cover-img">
+  <div class="notion-cover notion-cover--filled notion-cover--hero">
+    {% wiki_responsive_img page.cover_image alt=page.title css_class="notion-cover-img" %}
   </div>
   {% endif %}
 
@@ -36,8 +36,8 @@
     <header class="notion-page-header">
       <div class="notion-page-header-main">
         <h1 class="notion-page-title">{{ page.title }}</h1>
-        {% if page.summary %}
-        <p class="notion-page-summary">{{ page.summary }}</p>
+        {% if page_summary %}
+        <p class="notion-page-summary">{{ page_summary }}</p>
         {% endif %}
         <div class="notion-page-meta">
           <span>Created {{ page.created_at|date:"F j, Y" }}</span>
@@ -59,17 +59,47 @@
         </div>
       </div>
       <div class="notion-page-actions">
-        {% include "wiki/partials/page_actions.html" %}
-        {% if user.is_authenticated %}
-        <form method="post" action="{% url 'wiki:toggle_bookmark' page.slug %}" data-bookmark-form>
-          {% csrf_token %}
-          <c-button type="submit" variant="{% if is_bookmarked %}secondary{% else %}outline{% endif %}" size="sm">
-            {% if is_bookmarked %}★ Bookmarked{% else %}☆ Bookmark{% endif %}
-          </c-button>
-        </form>
-        {% endif %}
+        <div class="notion-page-actions-scroll">
+          {% include "wiki/partials/page_actions.html" %}
+          {% if user.is_authenticated %}
+          <form method="post" action="{% url 'wiki:toggle_bookmark' page.slug %}" data-bookmark-form class="shrink-0">
+            {% csrf_token %}
+            <c-button type="submit" variant="{% if is_bookmarked %}secondary{% else %}outline{% endif %}" size="sm">
+              {% if is_bookmarked %}★ Bookmarked{% else %}☆ Bookmark{% endif %}
+            </c-button>
+          </form>
+          {% endif %}
+        </div>
       </div>
     </header>
+
+    <nav class="mobile-page-bar md:hidden" aria-label="Quick actions">
+      <a href="{% url 'wiki:search' %}" class="mobile-page-bar__btn">
+        {% lucide "search" size=20 %}
+        <span>Search</span>
+      </a>
+      <button type="button" class="mobile-page-bar__btn" data-share-open>
+        {% lucide "share-2" size=20 %}
+        <span>Share</span>
+      </button>
+      <button type="button" class="mobile-page-bar__btn" data-reading-toggle>
+        {% lucide "book-open" size=20 %}
+        <span>Read</span>
+      </button>
+      {% if user.is_authenticated %}
+      <form method="post" action="{% url 'wiki:toggle_bookmark' page.slug %}" class="contents" data-bookmark-form>
+        {% csrf_token %}
+        <button type="submit" class="mobile-page-bar__btn">
+          {% lucide "bookmark" size=20 %}
+          <span>{% if is_bookmarked %}Saved{% else %}Save{% endif %}</span>
+        </button>
+      </form>
+      {% endif %}
+      <a href="{% url 'wiki:home' %}" class="mobile-page-bar__btn">
+        {% lucide "layers" size=20 %}
+        <span>Home</span>
+      </a>
+    </nav>
 
     <div class="notion-page-layout">
       {% if sections %}
@@ -89,7 +119,7 @@
 
       <div class="notion-page-body">
         {% if content_blocks %}
-        <section class="notion-media-blocks" aria-label="Media and documents">
+        <section class="notion-media-blocks" aria-label="Media and documents" {% if can_annotate %}data-can-annotate{% endif %}>
           {% for block in content_blocks %}
           <div class="wiki-block wiki-block--{{ block.type }}" data-block-id="{{ block.id }}">
             {{ block.html|safe }}
@@ -157,7 +187,11 @@
 
 {% block extra_js %}
 <script src="{% static 'js/wiki-links.js' %}" defer></script>
+<script src="{% static 'js/wiki-toc.js' %}" defer></script>
 {% if ai_configured %}
 <script src="{% static 'js/wiki-ai.js' %}" defer></script>
+{% endif %}
+{% if can_annotate %}
+<p class="text-xs text-muted-foreground mt-4">Alt+click an image block to add a pin annotation.</p>
 {% endif %}
 {% endblock %}

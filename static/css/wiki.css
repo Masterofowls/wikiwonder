@@ -169,6 +169,8 @@ html { scroll-behavior: smooth; }
   font-weight: 500;
   color: var(--foreground);
   transition: background-color 0.15s, color 0.15s;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 .mobile-nav-link:hover,
 .mobile-nav-link:focus-visible {
@@ -176,8 +178,127 @@ html { scroll-behavior: smooth; }
   color: var(--accent-foreground);
   outline: none;
 }
+
+/* Header icon buttons — valid single interactive element (no nested button-in-link) */
+.header-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  flex-shrink: 0;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--foreground);
+  text-decoration: none;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 0.15s, color 0.15s;
+}
+.header-icon-btn:hover,
+.header-icon-btn:focus-visible {
+  background: var(--accent);
+  color: var(--accent-foreground);
+  outline: none;
+}
+.header-tools {
+  flex-shrink: 0;
+}
+
+/* Vanilla mobile nav drawer (replaces broken Alpine x-teleport sheet) */
+.mobile-nav-drawer {
+  position: fixed;
+  inset: 0;
+  z-index: 9990;
+  pointer-events: none;
+}
+.mobile-nav-drawer.is-open {
+  pointer-events: auto;
+}
+.mobile-nav-backdrop {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in oklch, var(--background) 20%, transparent);
+  background: rgb(0 0 0 / 0.45);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.mobile-nav-drawer.is-open .mobile-nav-backdrop {
+  opacity: 1;
+}
+.mobile-nav-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(100vw - 1rem, 22rem);
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: max(1rem, var(--safe-top)) max(1rem, var(--safe-right)) max(1rem, var(--safe-bottom)) 1rem;
+  border-left: 1px solid var(--border);
+  background: var(--background);
+  box-shadow: -8px 0 32px rgb(0 0 0 / 0.12);
+  transform: translateX(100%);
+  transition: transform 0.25s ease;
+  outline: none;
+}
+.mobile-nav-drawer.is-open .mobile-nav-panel {
+  transform: translateX(0);
+}
+.mobile-nav-panel__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-bottom: 1rem;
+  margin-bottom: 0.25rem;
+  border-bottom: 1px solid var(--border);
+}
+.mobile-nav-panel__title {
+  font-family: var(--font-display);
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin: 0;
+}
+.mobile-nav-panel__subtitle {
+  font-size: 0.8125rem;
+  color: var(--muted-foreground);
+  margin: 0.25rem 0 0;
+}
+.mobile-nav-submit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  width: 100%;
+  border-radius: var(--radius-md);
+  border: none;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
 #site-header .container {
   min-width: 0;
+}
+
+/* Mobile drawer open — lock scroll, tame CMS toolbar */
+body.mobile-nav-open {
+  overflow: hidden;
+}
+body.mobile-nav-open #cms-top,
+body.mobile-nav-open .cms-toolbar,
+body.mobile-nav-open .cms-reset {
+  pointer-events: none !important;
 }
 
 #preview-tooltip, #link-preview-tooltip {
@@ -359,6 +480,62 @@ body.reading-mode .reading-mode-exit {
 .editor-tool-image::before { content: "🖼"; font-size: 0.75rem; }
 .editor-tool-video::before { content: "▶"; font-size: 0.75rem; }
 .editor-tool-audio::before { content: "♫"; font-size: 0.75rem; }
+.editor-tool-pdf::before { content: "PDF"; font-size: 0.6rem; font-weight: 700; }
+
+.notion-cover--hero { position: relative; }
+.dark .notion-cover--hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.45), transparent 55%);
+}
+
+.notion-toc-mobile {
+  margin-bottom: 1rem;
+}
+@media (min-width: 1024px) {
+  .notion-toc-mobile { display: none; }
+}
+.notion-toc-mobile-toggle {
+  width: 100%;
+  text-align: left;
+  padding: 0.625rem 0.75rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+.notion-toc-mobile-panel {
+  margin-top: 0.5rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--background);
+  max-height: 12rem;
+  overflow-y: auto;
+}
+.notion-toc-mobile-panel ol {
+  list-style: decimal;
+  padding-left: 1.25rem;
+  font-size: 0.875rem;
+}
+.wiki-annotation-pin {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 9999px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-size: 0.625rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: help;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
 .notion-advanced {
   margin-top: 1.25rem;
   border: 1px solid var(--border);
@@ -477,7 +654,234 @@ body.reading-mode .reading-mode-exit {
   text-decoration-color: var(--primary);
 }
 .wiki-content a.wiki-ext-link { cursor: help; }
+.wiki-content a.wiki-cite-ref {
+  font-size: 0.75em;
+  vertical-align: super;
+  line-height: 0;
+  font-weight: 600;
+  color: var(--primary);
+  background: color-mix(in oklch, var(--primary) 12%, transparent);
+  border-radius: 0.25rem;
+  padding: 0.05rem 0.25rem;
+  text-decoration: none;
+  cursor: help;
+}
+.wiki-content a.wiki-cite-ref:hover {
+  background: color-mix(in oklch, var(--primary) 22%, transparent);
+}
+.wiki-content ol.wiki-references {
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+.wiki-content li.wiki-cite-note {
+  scroll-margin-top: 6rem;
+}
 
 .wiki-ai-modal::backdrop { background: rgb(0 0 0 / 0.45); }
 .wiki-ai-modal[open] { animation: wiki-modal-in 0.2s ease-out; }
 .wiki-ai-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+
+/* ── Mobile & touch optimizations ── */
+:root {
+  --header-h: 3.5rem;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+@media (min-width: 640px) {
+  :root { --header-h: 4rem; }
+}
+
+.safe-top { padding-top: var(--safe-top); }
+.safe-bottom { padding-bottom: max(0.5rem, var(--safe-bottom)); }
+
+/* Solid header on phones — backdrop-filter breaks fixed overlays on some WebViews */
+@media (max-width: 767px) {
+  #site-header {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: var(--background);
+  }
+  /* CMS toolbar below site header on phones */
+  #cms-top {
+    position: relative !important;
+    top: auto !important;
+    z-index: 40 !important;
+  }
+  #cms-top .cms-toolbar {
+    position: relative !important;
+  }
+}
+
+/* Prevent iOS input zoom */
+@media (max-width: 767px) {
+  input[type="text"],
+  input[type="search"],
+  input[type="email"],
+  input[type="password"],
+  input[type="url"],
+  input[type="tel"],
+  input[type="number"],
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+/* Touch scrollers — always show nav buttons */
+.scroll-scroller--touch .scroll-btn {
+  opacity: 1;
+  width: 2.75rem;
+  height: 2.75rem;
+  touch-action: manipulation;
+}
+.is-touch .scroll-scroller:hover .scroll-btn { opacity: 1; }
+
+/* Hide desktop TOC on tablet/phone (mobile TOC via wiki-toc.js) */
+@media (max-width: 1023px) {
+  .notion-toc { display: none; }
+  .notion-toc-mobile {
+    position: sticky;
+    top: calc(var(--header-h) + var(--safe-top) + 0.25rem);
+    z-index: 30;
+    background: color-mix(in oklch, var(--background) 92%, transparent);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    padding-bottom: 0.25rem;
+  }
+  .notion-toc-mobile-toggle {
+    min-height: 2.75rem;
+    touch-action: manipulation;
+  }
+  .notion-toc-mobile-panel a {
+    display: block;
+    padding: 0.5rem 0.25rem;
+    min-height: 2.5rem;
+  }
+}
+
+/* Wiki page — mobile layout */
+@media (max-width: 767px) {
+  .notion-page-shell { padding: 1rem 0 2rem; }
+  .notion-page-header {
+    flex-direction: column;
+    margin-bottom: 1.25rem;
+  }
+  .notion-page-title { font-size: 1.75rem; }
+  .notion-page-summary { font-size: 1rem; }
+  .notion-page-meta { font-size: 0.75rem; line-height: 1.5; }
+  .notion-cover--filled,
+  .notion-cover--hero {
+    min-height: 10rem;
+    margin-inline: -0.75rem;
+    width: calc(100% + 1.5rem);
+    border-radius: 0;
+  }
+  .notion-section-title { font-size: 1.2rem; }
+  .notion-related { padding-inline: 0; }
+  .notion-page-actions {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    margin-inline: -0.25rem;
+    padding-bottom: 0.25rem;
+  }
+  .notion-page-actions::-webkit-scrollbar { display: none; }
+  .notion-page-actions-scroll {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 0.5rem;
+    width: max-content;
+    padding-inline: 0.25rem;
+  }
+  .notion-page-actions-scroll > * {
+    flex-shrink: 0;
+  }
+  .prose pre { font-size: 0.8125rem; }
+  .prose table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .hero-gradient { padding: 1.5rem 1rem; }
+  .hero-gradient h1 { font-size: 1.75rem; }
+}
+
+/* Mobile sheet safe areas — legacy cotton sheet (unused on main nav) */
+.mobile-sheet-body {
+  padding-bottom: max(1.25rem, var(--safe-bottom));
+  padding-right: max(1.25rem, var(--safe-right));
+}
+@media (max-width: 767px) {
+  [data-mobile-sheet-panel] {
+    width: min(100vw, 22rem) !important;
+    max-width: 100%;
+    padding-top: var(--safe-top);
+  }
+}
+
+/* Cookie banner + toast above home indicator */
+#cookie-consent {
+  padding-bottom: max(1rem, var(--safe-bottom));
+  padding-left: max(0.75rem, var(--safe-left));
+  padding-right: max(0.75rem, var(--safe-right));
+}
+#wiki-toast {
+  bottom: calc(5rem + var(--safe-bottom));
+}
+
+/* Reduce motion on mobile when preferred */
+@media (max-width: 767px) and (prefers-reduced-motion: reduce) {
+  .fade-in-up { animation: none; }
+  .image-card:hover { transform: none; }
+}
+
+/* Mobile bottom shortcut bar (wiki pages) */
+.mobile-page-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 35;
+  display: flex;
+  justify-content: space-around;
+  gap: 0.25rem;
+  padding: 0.5rem max(0.75rem, var(--safe-left)) max(0.5rem, var(--safe-bottom)) max(0.75rem, var(--safe-right));
+  border-top: 1px solid var(--border);
+  background: color-mix(in oklch, var(--background) 94%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.mobile-page-bar__btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.125rem;
+  min-height: 2.75rem;
+  max-width: 5rem;
+  padding: 0.35rem 0.25rem;
+  border-radius: var(--radius-md);
+  font-size: 0.625rem;
+  font-weight: 500;
+  color: var(--muted-foreground);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.mobile-page-bar__btn:active,
+.mobile-page-bar__btn:focus-visible {
+  background: var(--accent);
+  color: var(--foreground);
+  outline: none;
+}
+body.has-mobile-page-bar main {
+  padding-bottom: calc(4.5rem + var(--safe-bottom));
+}
+body.mobile-nav-open .mobile-page-bar,
+body.reading-mode .mobile-page-bar {
+  display: none;
+}

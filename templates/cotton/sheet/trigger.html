@@ -1,9 +1,3 @@
-<div>
-    <div
-    @click="showSheet()"
-    class="{% if class %}{{ class }}{% endif %}"
-    {{ attrs }}
-    >
-    {{ slot }}
-    </div>
+<div @click.stop="showSheet()" class="{% if class %}{{ class }}{% endif %}" {{ attrs }}>
+  {{ slot }}
 </div>

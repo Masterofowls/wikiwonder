@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% load static wiki_tags %}
+
+{% block title %}Import from URL — {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<section class="max-w-3xl mx-auto fade-in-up">
+  <nav aria-label="Breadcrumb" class="text-sm text-muted-foreground mb-4 flex flex-wrap gap-1">
+    <a href="{% url 'wiki:home' %}" class="hover:text-foreground">Home</a>
+    <span>/</span>
+    <span>Import from URL</span>
+  </nav>
+
+  <header class="mb-8">
+    <h1 class="font-display text-3xl font-semibold tracking-tight">Import from URL</h1>
+    <p class="mt-2 text-muted-foreground">
+      Pull content from Wikipedia, other wikis, documentation sites, RSS feeds, or any public web page
+      and convert it into formatted wiki markdown with sections.
+    </p>
+  </header>
+
+  <div class="grid gap-3 sm:grid-cols-2 mb-8">
+    {% for source in sources %}
+    <div class="rounded-lg border border-border p-4 bg-card">
+      <p class="font-medium text-sm">{{ source.label }}</p>
+      <p class="text-xs text-muted-foreground mt-1 break-all">{{ source.hint }}</p>
+    </div>
+    {% endfor %}
+  </div>
+
+  <form method="post" class="space-y-5 rounded-xl border border-border bg-card p-5 sm:p-6">
+    {% csrf_token %}
+    <div>
+      <label for="url" class="text-sm font-medium">Source URL</label>
+      <input id="url" name="url" type="url" required
+        value="{{ form_url|default:'' }}"
+        placeholder="https://en.wikipedia.org/wiki/..."
+        class="mt-1.5 flex h-11 w-full rounded-md border border-input bg-background px-3 text-sm">
+    </div>
+
+    <div class="grid gap-4 sm:grid-cols-2">
+      <div>
+        <label for="source_type" class="text-sm font-medium">Source type</label>
+        <select id="source_type" name="source_type"
+          class="mt-1.5 h-11 w-full rounded-md border border-input bg-background px-3 text-sm">
+          {% for source in sources %}
+          <option value="{{ source.id }}" {% if form_source_type == source.id %}selected{% elif not form_source_type and source.id == 'auto' %}selected{% endif %}>
+            {{ source.label }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label for="title" class="text-sm font-medium">Page title (optional)</label>
+        <input id="title" name="title" type="text" maxlength="255"
+          value="{{ form_title|default:'' }}"
+          placeholder="Override detected title"
+          class="mt-1.5 flex h-11 w-full rounded-md border border-input bg-background px-3 text-sm">
+      </div>
+    </div>
+
+    <div class="flex flex-wrap gap-4 text-sm">
+      <label class="inline-flex items-center gap-2">
+        <input type="checkbox" name="publish" class="rounded border-input" {% if form_publish %}checked{% endif %}>
+        Publish immediately
+      </label>
+      <label class="inline-flex items-center gap-2 {% if not ai_configured %}opacity-50{% endif %}">
+        <input type="checkbox" name="use_ai" class="rounded border-input"
+          {% if form_use_ai %}checked{% endif %} {% if not ai_configured %}disabled{% endif %}>
+        Polish with AI
+      </label>
+    </div>
+
+    <div class="flex flex-wrap gap-2">
+      <c-button type="submit" name="action" value="preview" variant="outline">Preview</c-button>
+      <c-button type="submit" name="action" value="import" class="btn-shimmer">Import page</c-button>
+      <a href="{% url 'wiki:create_page' %}"><c-button type="button" variant="ghost">Create manually</c-button></a>
+    </div>
+  </form>
+
+  {% if preview %}
+  <section class="mt-8 rounded-xl border border-border overflow-hidden" aria-labelledby="preview-heading">
+    <div class="border-b border-border bg-muted/40 px-5 py-3 flex flex-wrap items-center justify-between gap-2">
+      <div>
+        <h2 id="preview-heading" class="font-semibold">{{ preview.title }}</h2>
+        <p class="text-xs text-muted-foreground mt-0.5">
+          {{ preview.source_label }} · {{ preview.section_count }} sections
+          {% if preview.ai_used %} · AI polished{% endif %}
+        </p>
+      </div>
+      <a href="{{ preview.source_url }}" target="_blank" rel="noopener" class="text-xs text-primary hover:underline">
+        View source
+      </a>
+    </div>
+    <div class="p-5">
+      <p class="text-sm text-muted-foreground mb-4">{{ preview.summary }}</p>
+      <pre class="text-xs sm:text-sm whitespace-pre-wrap break-words max-h-[28rem] overflow-y-auto rounded-lg bg-muted/30 p-4 border border-border">{{ preview.markdown|truncatechars:12000 }}</pre>
+    </div>
+  </section>
+  {% endif %}
+</section>
+{% endblock %}

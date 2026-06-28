@@ -10,7 +10,7 @@ from django.views.generic import DetailView, ListView, TemplateView, View
 
 from apps.previews.services import preview_from_block
 from apps.search.services import wiki_page_queryset
-from apps.seo.services import home_seo, site_defaults, wiki_page_seo
+from apps.seo.services import home_seo, wiki_page_seo
 from apps.wiki.i18n_helpers import hreflang_links
 from apps.wiki.models import Bookmark, Category, SharedLink, WikiPage
 from apps.wiki.services.link_preview import fetch_link_preview
@@ -38,6 +38,15 @@ class HomeView(ListView):
         ctx["featured"] = published.filter(is_featured=True).select_related("category")[:8]
         ctx["trending"] = published.order_by("-view_count").select_related("category")[:8]
         ctx["categories"] = Category.objects.filter(parent__isnull=True).prefetch_related("children")
+        ctx["category_spotlights"] = [
+            {
+                "category": cat,
+                "pages": WikiPage.objects.filter(status=WikiPage.Status.PUBLISHED, category=cat)
+                .select_related("category")[:4],
+            }
+            for cat in Category.objects.filter(parent__isnull=True).order_by("name")[:6]
+            if cat.pages.filter(status=WikiPage.Status.PUBLISHED).exists()
+        ]
         ctx["shared_links"] = SharedLink.objects.filter(is_featured=True)[:12]
         ctx["all_shared_links"] = SharedLink.objects.all()[:20]
         ctx["stats"] = {
@@ -76,12 +85,13 @@ class PageDetailView(DetailView):
         ctx["sections"] = sections
         if sections:
             ctx["rendered_sections"] = [
-                (section, render_markdown(section.content)) for section in sections
+                (section, render_markdown(section.content, page_slug=self.object.slug))
+                for section in sections
             ]
             ctx["rendered_content"] = ""
         else:
             ctx["rendered_sections"] = []
-            ctx["rendered_content"] = render_markdown(self.object.content)
+            ctx["rendered_content"] = render_markdown(self.object.content, page_slug=self.object.slug)
         ctx["shared_links"] = self.object.shared_links.all()[:6]
         ctx["related_pages"] = (
             WikiPage.objects.filter(status=WikiPage.Status.PUBLISHED, category=self.object.category)
@@ -108,6 +118,21 @@ class PageDetailView(DetailView):
         ai = get_ai_service()
         ctx["ai_configured"] = ai.is_configured
         ctx["ai_quota"] = quota_status(self.request.user) if self.request.user.is_authenticated else None
+        from apps.wiki.permissions import can_edit_page
+
+        ctx["can_edit"] = can_edit_page(self.request.user, self.object)
+        ctx["can_annotate"] = ctx["can_edit"]
+        from apps.wiki.services.lara_translate import get_lara_service
+
+        lara = get_lara_service()
+        ctx["lara_configured"] = lara.is_configured
+        ctx["has_ru_translation"] = bool(getattr(self.object, "title_ru", None))
+        from apps.wiki.services.markdown import is_media_metadata, sanitize_summary_text
+
+        summary = self.object.summary or ""
+        if is_media_metadata(summary):
+            summary = sanitize_summary_text(summary)
+        ctx["page_summary"] = summary if summary and not is_media_metadata(summary) else ""
         return ctx
 
 

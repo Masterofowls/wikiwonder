@@ -652,6 +652,15 @@ wheels = [
 ]
 
 [[package]]
+name = "html2text"
+version = "2025.4.15"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/f8/27/e158d86ba1e82967cc2f790b0cb02030d4a8bef58e0c79a8590e9678107f/html2text-2025.4.15.tar.gz", hash = "sha256:948a645f8f0bc3abe7fd587019a2197a12436cd73d0d4908af95bfc8da337588", size = 64316, upload-time = "2025-04-15T04:02:30.045Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/1d/84/1a0f9555fd5f2b1c924ff932d99b40a0f8a6b12f6dd625e2a47f415b00ea/html2text-2025.4.15-py3-none-any.whl", hash = "sha256:00569167ffdab3d7767a4cdf589b7f57e777a5ed28d12907d8c58769ec734acc", size = 34656, upload-time = "2025-04-15T04:02:28.44Z" },
+]
+
+[[package]]
 name = "html5lib"
 version = "1.1"
 source = { registry = "https://pypi.org/simple" }
@@ -722,6 +731,18 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/72/34/14ca021ce8e5dfedc35312d08ba8bf51fdd999c576889fc2c24cb97f4f10/iniconfig-2.3.0.tar.gz", hash = "sha256:c76315c77db068650d49c5b56314774a7804df16fee4402c1f19d6d15d8c4730", size = 20503, upload-time = "2025-10-18T21:55:43.219Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/cb/b1/3846dd7f199d53cb17f49cba7e651e9ce294d8497c8c150530ed11865bb8/iniconfig-2.3.0-py3-none-any.whl", hash = "sha256:f631c04d2c48c52b84d0d0549c99ff3859c98df65b3101406327ecc7d53fbf12", size = 7484, upload-time = "2025-10-18T21:55:41.639Z" },
+]
+
+[[package]]
+name = "lara-sdk"
+version = "1.11.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "requests" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a6/7d/a01d19932a5d45d72bb2a50caa88cb6e45dc5823127103ffa0fa76daedf2/lara_sdk-1.11.2.tar.gz", hash = "sha256:3b56196033750ac39516b0fd86a4b36c03128f1c00295eb4dbb374ed3f057251", size = 23493, upload-time = "2026-06-12T15:30:14.023Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/be/56/b6a2c69abb61b14853cfe9a997a899a0123823bad3738a1f172e0cc6eff8/lara_sdk-1.11.2-py3-none-any.whl", hash = "sha256:1005de1c93e58236e36b88cccc2fb53b10ee18091a5314d50e5fed798889827c", size = 19935, upload-time = "2026-06-12T15:30:12.803Z" },
 ]
 
 [[package]]
@@ -1452,7 +1473,9 @@ dependencies = [
     { name = "easy-thumbnails" },
     { name = "feedparser" },
     { name = "gunicorn" },
+    { name = "html2text" },
     { name = "html5lib" },
+    { name = "lara-sdk" },
     { name = "markdown" },
     { name = "openpyxl" },
     { name = "pillow" },
@@ -1506,7 +1529,9 @@ requires-dist = [
     { name = "easy-thumbnails", specifier = ">=2.10.1" },
     { name = "feedparser", specifier = ">=6.0" },
     { name = "gunicorn", specifier = ">=23.0" },
+    { name = "html2text", specifier = ">=2025.4.15" },
     { name = "html5lib", specifier = ">=1.1" },
+    { name = "lara-sdk", specifier = ">=1.11.2" },
     { name = "markdown", specifier = ">=3.7" },
     { name = "openpyxl", specifier = ">=3.1.5" },
     { name = "pillow", specifier = ">=11.0" },

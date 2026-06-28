@@ -24,6 +24,11 @@
 <c-alert>
   <c-alert.title>Empty category</c-alert.title>
   <c-alert.description>No pages in this category yet.</c-alert.description>
+  {% if user.is_authenticated %}
+  <div class="mt-4">
+    <a href="{% url 'wiki:create_page' %}"><c-button size="sm">Create a page</c-button></a>
+  </div>
+  {% endif %}
 </c-alert>
 {% endif %}
 {% endblock %}

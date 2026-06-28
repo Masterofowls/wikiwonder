@@ -20,9 +20,14 @@
   const uploadStatus = document.getElementById('upload-status');
   const aiBtn = document.getElementById('ai-format-btn');
   const aiStatus = document.getElementById('ai-status');
+  const wikiPasteBtn = document.getElementById('wikipedia-paste-btn');
+  const wikiPasteStatus = document.getElementById('wikipedia-paste-status');
+  const wikiSourceUrl = document.getElementById('wikipedia_source_url');
+  const wikiPasteUrl = cfg.pasteWikipediaUrl || '/wiki/api/paste-wikipedia/';
   const videoInput = document.getElementById('editor-video-input');
   const audioInput = document.getElementById('editor-audio-input');
   const imageInput = document.getElementById('editor-image-input');
+  const pdfInput = document.getElementById('editor-pdf-input');
 
   let editor = null;
 
@@ -86,6 +91,45 @@
     }
   }
 
+  async function formatWikipediaPaste(textOverride) {
+    const text = (textOverride || contentValue()).trim();
+    if (!text) {
+      setStatus(wikiPasteStatus, 'Paste Wikipedia article text first.', true);
+      return;
+    }
+    if (wikiPasteBtn) wikiPasteBtn.disabled = true;
+    setStatus(wikiPasteStatus, 'Formatting Wikipedia paste with citations and wiki links…');
+
+    try {
+      const res = await fetch(wikiPasteUrl, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCsrfToken(),
+        },
+        body: JSON.stringify({
+          text,
+          source_url: wikiSourceUrl?.value?.trim() || '',
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Wikipedia paste failed');
+      setContentValue(data.markdown || '');
+      if (titleInput && data.title && !titleInput.value.trim()) {
+        titleInput.value = data.title;
+      }
+      setStatus(
+        wikiPasteStatus,
+        `Formatted with ${data.citation_count || 0} citations and internal wiki links.`,
+      );
+    } catch (err) {
+      setStatus(wikiPasteStatus, err.message || 'Could not format Wikipedia paste', true);
+    } finally {
+      if (wikiPasteBtn) wikiPasteBtn.disabled = false;
+    }
+  }
+
   if (textarea && window.EasyMDE) {
     editor = new EasyMDE({
       element: textarea,
@@ -128,7 +172,19 @@
           className: 'editor-tool-audio',
           title: 'Upload audio',
         },
-        '|',
+          {
+            name: 'upload-pdf',
+            action: () => pdfInput?.click(),
+            className: 'editor-tool-pdf',
+            title: 'Upload PDF',
+          },
+          {
+            name: 'wikipedia-paste',
+            action: () => formatWikipediaPaste(),
+            className: 'editor-tool-wikipedia',
+            title: 'Format Wikipedia paste',
+          },
+          '|',
         'preview', 'side-by-side', 'fullscreen',
       ],
     });
@@ -157,6 +213,11 @@
   audioInput?.addEventListener('change', () => {
     handleMediaUpload(audioInput.files?.[0], 'Audio');
     audioInput.value = '';
+  });
+
+  pdfInput?.addEventListener('change', () => {
+    handleMediaUpload(pdfInput.files?.[0], 'PDF');
+    pdfInput.value = '';
   });
 
   coverInput?.addEventListener('change', () => {
@@ -215,6 +276,8 @@
 
   aiBtn?.addEventListener('click', formatWithAI);
 
+  wikiPasteBtn?.addEventListener('click', () => formatWikipediaPaste());
+
   document.addEventListener('paste', (e) => {
     const items = e.clipboardData?.items;
     if (!items) return;
@@ -229,6 +292,9 @@
         item.getAsString((text) => {
           if (text && text.length > 40 && !contentValue().trim()) {
             setContentValue(text);
+          }
+          if (text && /\[\d{1,3}\]/.test(text) && text.length > 400) {
+            setStatus(wikiPasteStatus, 'Wikipedia-style paste detected — click “Format Wikipedia” to add citations.');
           }
         });
       }

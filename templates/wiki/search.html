@@ -39,7 +39,8 @@
 {% else %}
 <c-alert>
   <c-alert.title>No matches</c-alert.title>
-  <c-alert.description>Try different keywords or browse categories from the home page.</c-alert.description>
+  <c-alert.description>Try different keywords, check spelling, or browse categories from the home page.</c-alert.description>
+  <div class="mt-4"><a href="{% url 'wiki:home' %}"><c-button size="sm" variant="outline">Back to home</c-button></a></div>
 </c-alert>
 {% endif %}
 {% endif %}

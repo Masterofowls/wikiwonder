@@ -28,8 +28,12 @@
 <c-alert>
   <c-alert.title>No bookmarks yet</c-alert.title>
   <c-alert.description>
-    Browse wiki pages and click the bookmark button to save them here.
+    Browse wiki pages and click ☆ Bookmark to save them here for quick access and offline reading.
   </c-alert.description>
+  <div class="mt-4 flex gap-2">
+    <a href="{% url 'wiki:home' %}"><c-button size="sm">Explore pages</c-button></a>
+    <a href="{% url 'wiki:search' %}"><c-button size="sm" variant="outline">Search wiki</c-button></a>
+  </div>
 </c-alert>
 {% endif %}
 {% endblock %}

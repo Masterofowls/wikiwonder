@@ -6,7 +6,8 @@ from apps.wiki.models import WikiPage
 
 
 def _sync_wiki_page_seo(page: WikiPage) -> None:
-    from django_check_seo.models import Keyword, Page as SeoPage
+    from django_check_seo.models import Keyword
+    from django_check_seo.models import Page as SeoPage
 
     path = page.get_absolute_url()
     seo_page, _ = SeoPage.objects.get_or_create(path=path)
@@ -19,7 +20,8 @@ def _sync_wiki_page_seo(page: WikiPage) -> None:
 
 
 def _sync_home_seo() -> None:
-    from django_check_seo.models import Keyword, Page as SeoPage
+    from django_check_seo.models import Keyword
+    from django_check_seo.models import Page as SeoPage
 
     from apps.seo.services import _site_keywords
 

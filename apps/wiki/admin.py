@@ -1,6 +1,5 @@
 from django.contrib import admin
 from django.http import HttpResponseRedirect
-from django.urls import reverse
 from django.utils.html import format_html
 from i18nfield.fields import I18nTextField
 from import_export import resources
@@ -10,6 +9,7 @@ from modeltranslation.admin import TranslationAdmin
 from apps.wiki.models import (
     Bookmark,
     Category,
+    EditSuggestion,
     PageRevision,
     SharedLink,
     Tag,
@@ -108,6 +108,10 @@ class WikiPageAdmin(TranslationAdmin, ImportExportModelAdmin):
     def save_model(self, request, obj, form, change):
         if not obj.author_id:
             obj.author = request.user
+        if change and "content" in form.changed_data:
+            from apps.wiki.services.pages import save_page_revision
+
+            save_page_revision(obj, editor=request.user, change_summary="Admin edit")
         super().save_model(request, obj, form, change)
         sync_page_sections(obj)
 
@@ -155,6 +159,39 @@ class WikiPageAdmin(TranslationAdmin, ImportExportModelAdmin):
             sync_page_sections(page)
             count += 1
         self.message_user(request, f"Re-split sections for {count} page(s).")
+
+
+@admin.register(EditSuggestion)
+class EditSuggestionAdmin(admin.ModelAdmin):
+    list_display = ("page", "author", "status", "change_summary", "created_at")
+    list_filter = ("status", "created_at")
+    search_fields = ("page__title", "author__username", "change_summary")
+    readonly_fields = ("page", "author", "title", "content", "created_at", "reviewer", "reviewed_at")
+    actions = ["approve_suggestions"]
+
+    @admin.action(description="Approve and apply selected suggestions")
+    def approve_suggestions(self, request, queryset):
+        from django.utils import timezone
+
+        from apps.wiki.services.pages import update_page_content
+
+        count = 0
+        for suggestion in queryset.filter(status=EditSuggestion.Status.PENDING):
+            page = suggestion.page
+            page.title = suggestion.title
+            page.save(update_fields=["title", "updated_at"])
+            update_page_content(
+                page,
+                suggestion.content,
+                editor=request.user,
+                change_summary=f"Applied suggestion #{suggestion.pk}",
+            )
+            suggestion.status = EditSuggestion.Status.APPROVED
+            suggestion.reviewer = request.user
+            suggestion.reviewed_at = timezone.now()
+            suggestion.save(update_fields=["status", "reviewer", "reviewed_at"])
+            count += 1
+        self.message_user(request, f"Applied {count} suggestion(s).")
 
 
 @admin.register(Bookmark)

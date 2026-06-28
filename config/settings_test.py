@@ -14,3 +14,8 @@ STORAGES = {
         "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
     },
 }
+
+# Disable Lara Translate in tests unless explicitly overridden
+LARA_ACCESS_KEY_ID = ""
+LARA_ACCESS_KEY_SECRET = ""
+LARA_AUTO_TRANSLATE = False

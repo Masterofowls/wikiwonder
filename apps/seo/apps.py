@@ -7,7 +7,8 @@ class SeoConfig(AppConfig):
     verbose_name = "SEO Tools"
 
     def ready(self):
-        from apps.seo import signals  # noqa: F401
         from django.db.models.signals import post_migrate
+
+        from apps.seo import signals  # noqa: F401
 
         post_migrate.connect(signals.ensure_site_seo_keywords, sender=self)

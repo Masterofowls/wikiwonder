@@ -10,6 +10,22 @@ EMBED_PATTERN = re.compile(
 )
 
 ATTR_PATTERN = re.compile(r'(\w+)=(?:"([^"]*)"|\'([^\']*)\'|(\S+))')
+UNFENCED_WIKI_EMBED = re.compile(
+    r"wiki-(?P<type>embed|media|code|graph|pdf|video|audio|url)\s+"
+    r"(?P<attrs>(?:\w+=\"[^\"]*\"\s*)+)",
+    re.IGNORECASE,
+)
+
+
+def repair_unfenced_wiki_embeds(text: str) -> str:
+    """Wrap bare `wiki-video url=\"...\"` lines in fenced blocks for processing."""
+
+    def repl(match: re.Match) -> str:
+        block_type = match.group("type").lower()
+        attrs = match.group("attrs").strip()
+        return f"```wiki-{block_type} {attrs}\n```"
+
+    return UNFENCED_WIKI_EMBED.sub(repl, text)
 
 
 def _parse_attrs(raw: str) -> dict[str, str]:
@@ -56,6 +72,7 @@ def process_embeds(text: str) -> str:
 
 
 URL_IN_TEXT = re.compile(r"(?<![\"'=])(https?://[^\s<>\"]+)")
+REF_DEF_LINE = re.compile(r"^\[[^\]]+\]:\s")
 
 
 def highlight_urls(text: str) -> str:
@@ -70,4 +87,10 @@ def highlight_urls(text: str) -> str:
             return _wiki_embed(kind, url, url) + suffix
         return f"[{url}]({url}){suffix}"
 
-    return URL_IN_TEXT.sub(repl, text)
+    lines: list[str] = []
+    for line in text.splitlines():
+        if REF_DEF_LINE.match(line.strip()):
+            lines.append(line)
+        else:
+            lines.append(URL_IN_TEXT.sub(repl, line))
+    return "\n".join(lines)

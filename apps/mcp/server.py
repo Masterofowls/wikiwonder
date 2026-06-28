@@ -6,6 +6,7 @@ import json
 from django.core.serializers.json import DjangoJSONEncoder
 
 from apps.imports.services import preview_import
+from apps.imports.url_import import preview_url_import
 from apps.search.services import instant_search
 from apps.wiki.models import WikiPage
 from apps.wiki.serializers import WikiPageDetailSerializer
@@ -53,6 +54,22 @@ def list_tools() -> list[dict]:
             },
         },
         {
+            "name": "import_from_url",
+            "description": "Fetch Wikipedia, MediaWiki, RSS, docs, or web pages and preview wiki markdown",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "url": {"type": "string"},
+                    "source_type": {
+                        "type": "string",
+                        "enum": ["auto", "wikipedia", "mediawiki", "rss", "docs", "web"],
+                    },
+                    "use_ai": {"type": "boolean"},
+                },
+                "required": ["url"],
+            },
+        },
+        {
             "name": "export_page",
             "description": "Export a wiki page as markdown or JSON",
             "inputSchema": {
@@ -89,6 +106,13 @@ def call_tool(name: str, arguments: dict | None = None) -> dict:
         return preview_import(
             arguments.get("text", ""),
             title=arguments.get("title", ""),
+            use_ai=arguments.get("use_ai", False),
+        )
+
+    if name == "import_from_url":
+        return preview_url_import(
+            arguments.get("url", ""),
+            source_type=arguments.get("source_type", "auto"),
             use_ai=arguments.get("use_ai", False),
         )
 

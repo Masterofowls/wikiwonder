@@ -7,6 +7,7 @@ Self-hosted Wikipedia with AI-powered import, CMS admin, PWA offline support, RS
 - **Wiki pages** with markdown editing (django-markdownx)
 - **Auto section splitting** — content divided by `##` headings into navigable sections
 - **AI import** — paste raw text, Cerebras formats it into markdown wiki pages
+- **Multilingual** — English (main) + Russian; Lara Translate auto-generates Russian wiki content on create/update
 - **Admin CMS** — full Django admin with import/export, bulk actions
 - **RSS/Atom feed** at `/feeds/latest/`
 - **Bookmarks** for authenticated users
@@ -54,6 +55,31 @@ uv run python manage.py runserver 9000
 ```
 
 Visit http://localhost:9000 — admin login: `admin` / `admin`
+
+## Lara Translate (English → Russian)
+
+Wiki pages auto-generate Russian translations on create and edit when Lara credentials are set:
+
+```bash
+# .env
+LARA_ACCESS_KEY_ID=your-access-key-id
+LARA_ACCESS_KEY_SECRET=your-access-key-secret
+LARA_AUTO_TRANSLATE=True
+LARA_TARGET_LANGUAGES=ru
+```
+
+Re-translate existing pages:
+
+```bash
+uv run python manage.py translate_wiki
+uv run python manage.py translate_wiki --slug my-page --force
+```
+
+Production (Fly.io):
+
+```bash
+fly secrets set LARA_ACCESS_KEY_ID=... LARA_ACCESS_KEY_SECRET=... -a wikiwonder
+```
 
 ## Docker
 
@@ -154,6 +180,10 @@ curl https://wikiwonder.fly.dev/health/
 | `/api/bookmarks/` | GET/POST | Required | User bookmarks |
 | `/api/import/preview/` | POST | Required | Preview text import |
 | `/api/import/create/` | POST | Required | Create page from text |
+| `/api/import/sources/` | GET | Optional | Supported URL import source types |
+| `/api/import/url/preview/` | POST | Required | Preview import from URL |
+| `/api/import/url/` | POST | Required | Create page from URL |
+| `/wiki/import/` | GET/POST | Required | Import from URL (web UI) |
 | `/api/ai/status/` | GET | None | Cerebras configured + model |
 | `/api/ai/format/` | POST | Required | Format text → markdown + title + summary |
 | `/api/ai/chat/` | POST | Required | Cerebras chat completion |

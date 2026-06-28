@@ -1,6 +1,7 @@
-/* Service Worker — offline caching + bookmark prefetch (v3) */
-const CACHE_NAME = 'wikiwonder-v3';
+/* Service Worker — offline caching + bookmark prefetch + media (v5) */
+const CACHE_NAME = 'wikiwonder-v6';
 const BOOKMARK_CACHE = 'wikiwonder-bookmarks-v1';
+const MEDIA_CACHE = 'wikiwonder-media-v1';
 const OFFLINE_URL = '/offline/';
 const PRECACHE_URLS = [
   '/',
@@ -9,6 +10,7 @@ const PRECACHE_URLS = [
   '/static/css/wiki.css',
   '/static/css/media-blocks.css',
   '/static/js/app.js',
+  '/static/js/mobile.js',
   '/static/js/share.js',
   '/static/js/media-blocks.js',
   '/static/icons/icon-192.png',
@@ -26,7 +28,7 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((keys) =>
       Promise.all(
         keys
-          .filter((k) => k !== CACHE_NAME && k !== BOOKMARK_CACHE)
+          .filter((k) => k !== CACHE_NAME && k !== BOOKMARK_CACHE && k !== MEDIA_CACHE)
           .map((k) => caches.delete(k))
       )
     )
@@ -84,6 +86,23 @@ self.addEventListener('fetch', (event) => {
   if (url.pathname.startsWith('/static/')) {
     event.respondWith(
       caches.match(event.request).then((cached) => cached || fetch(event.request))
+    );
+    return;
+  }
+
+  if (url.pathname.startsWith('/media/')) {
+    event.respondWith(
+      caches.open(MEDIA_CACHE).then((cache) =>
+        cache.match(event.request).then((cached) => {
+          const network = fetch(event.request)
+            .then((response) => {
+              if (response.ok) cache.put(event.request, response.clone());
+              return response;
+            })
+            .catch(() => null);
+          return cached || network;
+        })
+      )
     );
   }
 });
