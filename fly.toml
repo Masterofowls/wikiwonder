@@ -1,40 +1,33 @@
-# fly.toml — WikiWonder on Fly.io
-# See https://fly.io/docs/reference/configuration/
-
 app = "wikiwonder"
 primary_region = "iad"
 
 [build]
 
-[env]
-  PORT = "8000"
-  DEBUG = "false"
-
 [http_service]
-  internal_port = 8000
+  internal_port = 9000
   force_https = true
-  auto_stop_machines = "stop"
+  auto_stop_machines = true
   auto_start_machines = true
-  min_machines_running = 1
-  processes = ["app"]
-
-  [http_service.concurrency]
-    type = "connections"
-    hard_limit = 100
-    soft_limit = 80
+  min_machines_running = 0
 
   [[http_service.checks]]
-    grace_period = "60s"
+    grace_period = "30s"
     interval = "15s"
     method = "GET"
     timeout = "10s"
-    path = "/health/"
+    path = "/health"
+
+[env]
+  NODE_ENV = "production"
+  NEXT_PUBLIC_SITE_URL = "https://wikiwonder.fly.dev"
+  NEXT_PUBLIC_SITE_NAME = "WikiWonder"
+  PORT = "9000"
+
+[[mounts]]
+  source = "wikiwonder_uploads"
+  destination = "/app/public/uploads"
 
 [[vm]]
   memory = "1gb"
   cpu_kind = "shared"
   cpus = 1
-
-[mounts]
-  source = "wikiwonder_media"
-  destination = "/app/media"

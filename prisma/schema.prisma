@@ -1,0 +1,289 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─── Auth ────────────────────────────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified DateTime?
+  username      String    @unique
+  name          String?
+  passwordHash  String?
+  isStaff       Boolean   @default(false)
+  isSuperuser   Boolean   @default(false)
+  avatar        String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  sessions         Session[]
+  wikiPages        WikiPage[]         @relation("PageAuthor")
+  bookmarks        Bookmark[]
+  editSuggestions  EditSuggestion[]   @relation("SuggestionAuthor")
+  reviewedSuggestions EditSuggestion[] @relation("SuggestionReviewer")
+  aiUsageDays      AIUsageDaily[]
+  sharedLinks      SharedLink[]
+  blockAnnotations BlockAnnotation[]
+  revisions        PageRevision[]
+
+  @@index([email])
+  @@index([username])
+}
+
+model Session {
+  id        String   @id
+  userId    String
+  expiresAt DateTime
+  user      User     @relation(references: [id], fields: [userId], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ─── Wiki ─────────────────────────────────────────────────────────────────────
+
+model Category {
+  id          Int        @id @default(autoincrement())
+  name        String     @unique @db.VarChar(120)
+  nameRu      String?    @db.VarChar(120)
+  slug        String     @unique @db.VarChar(120)
+  description String?
+  descriptionRu String?
+  parentId    Int?
+  parent      Category?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children    Category[] @relation("CategoryTree")
+  pages       WikiPage[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([slug])
+}
+
+model Tag {
+  id    Int        @id @default(autoincrement())
+  name  String     @unique @db.VarChar(60)
+  slug  String     @unique @db.VarChar(60)
+  pages WikiPage[]
+
+  @@index([slug])
+}
+
+model WikiPage {
+  id             Int        @id @default(autoincrement())
+  title          String     @db.VarChar(255)
+  titleRu        String?    @db.VarChar(255)
+  slug           String     @unique @db.VarChar(255)
+  summary        String?
+  summaryRu      String?
+  content        String     @default("")
+  contentRu      String?
+  status         PageStatus @default(DRAFT)
+  isFeatured     Boolean    @default(false)
+  viewCount      Int        @default(0)
+  sourceUrl      String?    @db.VarChar(2048)
+  coverImage     String?
+  editorialNotes Json?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  publishedAt    DateTime?
+
+  authorId    String?
+  author      User?     @relation("PageAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  categoryId  Int?
+  category    Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  tags        Tag[]
+
+  sections       WikiSection[]
+  bookmarks      Bookmark[]
+  revisions      PageRevision[]
+  editSuggestions EditSuggestion[]
+  sharedLinks    SharedLink[]
+  aliases        WikiPageAlias[]
+  contentBlocks  ContentBlock[]
+
+  @@index([status, updatedAt(sort: Desc)])
+  @@index([categoryId, status])
+  @@index([isFeatured])
+  @@index([slug])
+}
+
+enum PageStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model WikiSection {
+  id      Int      @id @default(autoincrement())
+  pageId  Int
+  page    WikiPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  title   String   @db.VarChar(255)
+  titleRu String?  @db.VarChar(255)
+  slug    String   @db.VarChar(255)
+  anchor  String   @db.VarChar(255)
+  content String
+  contentRu String?
+  order   Int      @default(0)
+
+  @@index([pageId])
+  @@index([anchor])
+}
+
+model Bookmark {
+  id        Int      @id @default(autoincrement())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pageId    Int
+  page      WikiPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@unique([userId, pageId])
+  @@index([userId])
+}
+
+model SharedLink {
+  id          Int      @id @default(autoincrement())
+  url         String   @db.VarChar(2048)
+  slug        String   @unique @db.VarChar(255)
+  title       String   @db.VarChar(500)
+  description String?
+  imageUrl    String?  @db.VarChar(2048)
+  faviconUrl  String?  @db.VarChar(2048)
+  siteName    String?  @db.VarChar(255)
+  pageId      Int?
+  page        WikiPage? @relation(fields: [pageId], references: [id], onDelete: SetNull)
+  isFeatured  Boolean  @default(false)
+  clickCount  Int      @default(0)
+  createdById String?
+  createdBy   User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([slug])
+}
+
+model PageRevision {
+  id            Int      @id @default(autoincrement())
+  pageId        Int
+  page          WikiPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  editorId      String?
+  editor        User?    @relation(fields: [editorId], references: [id], onDelete: SetNull)
+  title         String   @db.VarChar(255)
+  content       String
+  changeSummary String?  @db.VarChar(255)
+  createdAt     DateTime @default(now())
+
+  @@index([pageId])
+}
+
+model EditSuggestion {
+  id            Int              @id @default(autoincrement())
+  pageId        Int
+  page          WikiPage         @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  authorId      String
+  author        User             @relation("SuggestionAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  title         String           @db.VarChar(255)
+  content       String
+  changeSummary String?          @db.VarChar(255)
+  status        SuggestionStatus @default(PENDING)
+  reviewerId    String?
+  reviewer      User?            @relation("SuggestionReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+  reviewNote    String?          @db.VarChar(255)
+  createdAt     DateTime         @default(now())
+  reviewedAt    DateTime?
+
+  @@index([pageId])
+  @@index([status])
+}
+
+enum SuggestionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model WikiPageAlias {
+  id        Int      @id @default(autoincrement())
+  pageId    Int
+  page      WikiPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  alias     String   @db.VarChar(255)
+  createdAt DateTime @default(now())
+
+  @@unique([pageId, alias])
+  @@index([alias])
+}
+
+// ─── Media / Content Blocks ──────────────────────────────────────────────────
+
+model ContentBlock {
+  id          Int         @id @default(autoincrement())
+  pageId      Int
+  page        WikiPage    @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  blockType   BlockType
+  file        String?
+  sourceUrl   String?     @db.VarChar(2048)
+  content     String?
+  title       String?     @db.VarChar(500)
+  titleRu     String?     @db.VarChar(500)
+  description String?
+  descriptionRu String?
+  language    String?     @db.VarChar(50)
+  metadata    Json?
+  order       Int         @default(0)
+  createdAt   DateTime    @default(now())
+
+  annotations BlockAnnotation[]
+
+  @@index([pageId])
+}
+
+enum BlockType {
+  IMAGE
+  GIF
+  VIDEO
+  AUDIO
+  PDF
+  CODE
+  GRAPH
+  URL
+  FB2
+  HTML
+  DOCUMENT
+}
+
+model BlockAnnotation {
+  id          Int          @id @default(autoincrement())
+  blockId     Int
+  block       ContentBlock @relation(fields: [blockId], references: [id], onDelete: Cascade)
+  authorId    String?
+  author      User?        @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  label       String       @db.VarChar(255)
+  body        String
+  xPercent    Float?
+  yPercent    Float?
+  startOffset Int?
+  endOffset   Int?
+  createdAt   DateTime     @default(now())
+
+  @@index([blockId])
+}
+
+// ─── AI ──────────────────────────────────────────────────────────────────────
+
+model AIUsageDaily {
+  id           Int      @id @default(autoincrement())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date         DateTime @db.Date
+  requestCount Int      @default(0)
+
+  @@unique([userId, date])
+  @@index([userId, date])
+}

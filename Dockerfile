@@ -1,28 +1,49 @@
-FROM python:3.12-slim AS base
+FROM node:22-alpine AS base
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    UV_SYSTEM_PYTHON=1
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq-dev gcc curl \
-    && rm -rf /var/lib/apt/lists/*
-
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
-
+# Install dependencies only when needed
+FROM base AS deps
+RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-COPY pyproject.toml uv.lock* README.md ./
-RUN uv sync --frozen --no-dev 2>/dev/null || uv sync --no-dev
+COPY package.json package-lock.json* ./
+RUN npm ci
 
+# Build stage
+FROM base AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-RUN uv run python manage.py collectstatic --noinput 2>/dev/null || true
+ENV NEXT_TELEMETRY_DISABLED 1
+ENV SKIP_ENV_VALIDATION 1
+ENV DATABASE_URL "postgresql://placeholder:placeholder@localhost:5432/placeholder"
+ENV DIRECT_URL "postgresql://placeholder:placeholder@localhost:5432/placeholder"
 
-EXPOSE 8000
+RUN npx prisma generate
+RUN npm run build
 
-COPY infra/docker/entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+# Production stage
+FROM base AS runner
+WORKDIR /app
 
-ENTRYPOINT ["/entrypoint.sh"]
-CMD ["/app/.venv/bin/gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "1", "--timeout", "120"]
+ENV NODE_ENV production
+ENV NEXT_TELEMETRY_DISABLED 1
+
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
+# Copy built assets
+COPY --from=builder /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+
+USER nextjs
+
+EXPOSE 9000
+
+ENV PORT 9000
+ENV HOSTNAME "0.0.0.0"
+
+CMD ["sh", "-c", "npx prisma migrate deploy && node server.js"]
