@@ -57,6 +57,7 @@ dev = [
     "ruff>=0.8",
     "pytest>=8.0",
     "pytest-django>=4.9",
+    "playwright>=1.49",
 ]
 
 [tool.ruff]
@@ -75,6 +76,9 @@ known-first-party = ["apps", "config"]
 DJANGO_SETTINGS_MODULE = "config.settings_test"
 pythonpath = ["."]
 testpaths = ["tests"]
+markers = [
+    "e2e: Playwright browser tests (tests/e2e/)",
+]
 
 [build-system]
 requires = ["hatchling"]

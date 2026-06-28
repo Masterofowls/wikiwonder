@@ -43,13 +43,31 @@ def normalize_wiki_title(title: str) -> str:
 
 
 def resolve_wiki_slug(title: str, index: list[tuple[str, str]] | None = None) -> str | None:
-    """Resolve page title or slug fragment to a published slug."""
+    """Resolve page title, alias, or slug fragment to a published slug."""
     raw = title.strip()
     if not raw:
         return None
     needle = raw.lower()
     normalized = normalize_wiki_title(raw).lower()
     index = index or get_published_wiki_index()
+
+    from apps.wiki.models import WikiPageAlias
+
+    alias_hit = (
+        WikiPageAlias.objects.filter(alias__iexact=raw)
+        .select_related("page")
+        .first()
+    )
+    if alias_hit and alias_hit.page.status == alias_hit.page.Status.PUBLISHED:
+        return alias_hit.page.slug
+    alias_hit = (
+        WikiPageAlias.objects.filter(alias__iexact=normalized)
+        .select_related("page")
+        .first()
+    )
+    if alias_hit and alias_hit.page.status == alias_hit.page.Status.PUBLISHED:
+        return alias_hit.page.slug
+
     for page_title, slug in index:
         page_lower = page_title.lower()
         page_norm = normalize_wiki_title(page_title).lower()

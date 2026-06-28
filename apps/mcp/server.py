@@ -89,7 +89,7 @@ def call_tool(name: str, arguments: dict | None = None) -> dict:
     if name == "search_wiki":
         query = arguments.get("query", "")
         limit = int(arguments.get("limit", 8))
-        return {"results": instant_search(query, limit=limit)}
+        return {"results": instant_search(query, limit=limit)["results"]}
 
     if name == "get_page":
         page = WikiPage.objects.filter(slug=arguments["slug"]).first()

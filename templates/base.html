@@ -42,7 +42,6 @@
       <!-- Desktop nav -->
       <nav class="hidden md:flex items-center gap-1 min-w-0" aria-label="Main navigation">
         {% include "wiki/partials/nav_link.html" with url="/" label="Home" %}
-        {% include "wiki/partials/nav_link.html" with url="/search/" label="Search" %}
         {% if user.is_authenticated %}
         {% include "wiki/partials/nav_link.html" with url="/wiki/new/" label="Create" %}
         {% include "wiki/partials/nav_link.html" with url="/bookmarks/" label="Bookmarks" %}
@@ -78,29 +77,18 @@
       {% endif %}
 
       <!-- Search (desktop) -->
-      <div class="hidden lg:block flex-1 max-w-sm relative" x-data="instantSearch('{% url 'wiki:search' %}')" @click.outside="open = false">
-        <form action="{% url 'wiki:search' %}" method="get" class="flex items-center gap-2" @submit="if (!query.trim()) $event.preventDefault()">
+      <div class="hidden lg:block flex-1 max-w-sm relative" x-data="instantSearch('{% url 'wiki:home' %}', '{% url 'wiki:search' %}')" x-init="initFromParam()" @click.outside="open = false">
+        <form action="{% url 'wiki:home' %}" method="get" class="flex items-center gap-2" @submit="if (!query.trim()) $event.preventDefault()">
           <div class="relative flex-1">
-            <input type="search" name="q" x-model="query" @input.debounce.200ms="fetchResults()" @focus="fetchResults()" @keydown.escape="open = false" placeholder="Search wiki…" class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring" aria-label="Search" autocomplete="off">
-            <div x-show="open && query.trim().length >= 2" x-cloak class="absolute top-full left-0 right-0 z-50 mt-1 rounded-lg border border-border bg-popover shadow-lg overflow-hidden">
-              <template x-if="results.length === 0">
-                <p class="px-3 py-2 text-sm text-muted-foreground">No results found</p>
-              </template>
-              <template x-for="item in results" :key="item.url">
-                <a :href="item.url" class="flex flex-col gap-0.5 px-3 py-2 hover:bg-accent transition-colors border-b border-border/50 last:border-0">
-                  <span class="text-sm font-medium" x-text="item.title"></span>
-                  <span class="text-xs text-muted-foreground line-clamp-1" x-text="item.snippet"></span>
-                </a>
-              </template>
-              <a :href="searchPageUrl + '?q=' + encodeURIComponent(query)" class="block px-3 py-2 text-xs text-primary hover:bg-accent text-center">View all results</a>
-            </div>
+            <input type="search" name="q" x-model="query" @input.debounce.200ms="fetchResults()" @focus="fetchResults()" @keydown.escape="open = false" placeholder="Search wiki, tags, categories…" class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring" aria-label="Search" autocomplete="off">
+            {% include "wiki/partials/search_typeahead.html" %}
           </div>
           <c-button type="submit" size="sm">Search</c-button>
         </form>
       </div>
 
       <!-- Mobile search -->
-      <a href="{% url 'wiki:search' %}" class="header-icon-btn lg:hidden" aria-label="Search">
+      <a href="{% url 'wiki:home' %}#home-search" class="header-icon-btn lg:hidden" aria-label="Search">
         {% lucide "search" size=18 %}
       </a>
 

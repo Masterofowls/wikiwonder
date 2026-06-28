@@ -29,6 +29,10 @@
   const wikiDownloadMedia = document.getElementById('wikipedia_download_media');
   const wikiPasteUrl = cfg.pasteWikipediaUrl || '/wiki/api/paste-wikipedia/';
   const wikiImportUrl = cfg.importWikipediaUrl || '/wiki/api/import-wikipedia/';
+  const wikiBulkUrl = cfg.bulkImportWikipediaUrl || '/wiki/api/bulk-import-wikipedia/';
+  const wikiBulkBtn = document.getElementById('wikipedia-bulk-btn');
+  const wikiBulkStatus = document.getElementById('wikipedia-bulk-status');
+  const wikiBulkUrls = document.getElementById('wikipedia_bulk_urls');
   const videoInput = document.getElementById('editor-video-input');
   const audioInput = document.getElementById('editor-audio-input');
   const imageInput = document.getElementById('editor-image-input');
@@ -142,7 +146,18 @@
       return;
     }
     if (wikiImportBtn) wikiImportBtn.disabled = true;
-    setStatus(wikiImportStatus, 'Fetching and formatting from Wikipedia…');
+    const steps = [
+      'Fetching article from Wikipedia…',
+      'Converting HTML to markdown…',
+      'Resolving citations and wikilinks…',
+      'Processing media…',
+    ];
+    let stepIdx = 0;
+    setStatus(wikiImportStatus, steps[0]);
+    const stepTimer = setInterval(() => {
+      stepIdx = Math.min(stepIdx + 1, steps.length - 1);
+      setStatus(wikiImportStatus, steps[stepIdx]);
+    }, 2200);
 
     try {
       const res = await fetch(wikiImportUrl, {
@@ -166,14 +181,59 @@
       if (summaryInput && data.summary && !summaryInput.value.trim()) {
         summaryInput.value = data.summary;
       }
+      const cats = data.category_count ? `, ${data.category_count} tags` : '';
       setStatus(
         wikiImportStatus,
-        `Imported “${data.title}” — ${data.section_count || 0} sections, ${data.media_count || 0} media, ${data.citation_count || 0} citations.`,
+        `Imported “${data.title}” — ${data.section_count || 0} sections, ${data.media_count || 0} media, ${data.citation_count || 0} citations${cats}.`,
       );
     } catch (err) {
       setStatus(wikiImportStatus, err.message || 'Could not import from Wikipedia', true);
     } finally {
+      clearInterval(stepTimer);
       if (wikiImportBtn) wikiImportBtn.disabled = false;
+    }
+  }
+
+  async function bulkImportWikipedia() {
+    const raw = wikiBulkUrls?.value?.trim();
+    if (!raw) {
+      setStatus(wikiBulkStatus, 'Enter URLs or a category URL.', true);
+      return;
+    }
+    const lines = raw.split(/\n+/).map((l) => l.trim()).filter(Boolean);
+    const categoryLine = lines.find((l) => /Category:/i.test(l) || /\/wiki\/Category:/i.test(l));
+    const urls = lines.filter((l) => l !== categoryLine);
+    if (wikiBulkBtn) wikiBulkBtn.disabled = true;
+    setStatus(wikiBulkStatus, `Importing ${urls.length || 'category'} article(s)…`);
+
+    try {
+      const res = await fetch(wikiBulkUrl, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCsrfToken(),
+        },
+        body: JSON.stringify({
+          urls,
+          category_url: categoryLine || '',
+          download_media: Boolean(wikiDownloadMedia?.checked),
+          publish: true,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Bulk import failed');
+      const ok = data.results?.filter((r) => r.ok) || [];
+      const failed = data.results?.filter((r) => !r.ok) || [];
+      setStatus(
+        wikiBulkStatus,
+        `Imported ${ok.length}/${data.total} page(s).${failed.length ? ` ${failed.length} failed.` : ''}`,
+        failed.length === data.total,
+      );
+    } catch (err) {
+      setStatus(wikiBulkStatus, err.message || 'Bulk import failed', true);
+    } finally {
+      if (wikiBulkBtn) wikiBulkBtn.disabled = false;
     }
   }
 
@@ -331,6 +391,7 @@
 
   wikiPasteBtn?.addEventListener('click', () => formatWikipediaPaste());
   wikiImportBtn?.addEventListener('click', () => importWikipediaUrl());
+  wikiBulkBtn?.addEventListener('click', () => bulkImportWikipedia());
 
   document.addEventListener('paste', (e) => {
     const items = e.clipboardData?.items;

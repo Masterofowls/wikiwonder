@@ -79,6 +79,35 @@
               value="{{ initial_summary|default:'' }}"
               placeholder="Optional preview text for cards and SEO">
           </div>
+          <div>
+            <label for="category" class="text-sm font-medium">Category</label>
+            <select id="category" name="category" class="notion-field-input mt-1">
+              <option value="">— None —</option>
+              {% for cat in all_categories %}
+              <option value="{{ cat.pk }}" {% if initial_category_id == cat.pk %}selected{% endif %}>{{ cat.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          {% if user.is_staff %}
+          <div class="flex flex-wrap gap-2 items-end">
+            <div class="flex-1 min-w-[12rem]">
+              <label for="new_category_name" class="text-sm font-medium">Quick new category (admin)</label>
+              <input id="new_category_name" type="text" maxlength="120" class="notion-field-input mt-1"
+                placeholder="e.g. Web security">
+            </div>
+            <c-button type="button" variant="secondary" size="sm" id="quick-category-btn">Create category</c-button>
+          </div>
+          <p id="quick-category-status" class="notion-hint hidden" role="status"></p>
+          {% endif %}
+          <div>
+            <label for="tags" class="text-sm font-medium">Tags</label>
+            <input id="tags" name="tags" type="text" maxlength="500" list="tag-suggestions"
+              class="notion-field-input mt-1"
+              value="{{ initial_tags|default:'' }}"
+              placeholder="security, web, xss">
+            <datalist id="tag-suggestions"></datalist>
+            <p class="text-xs text-muted-foreground mt-1">Comma-separated — add multiple tags at once.</p>
+          </div>
           {% if edit_mode %}
           <div>
             <label for="change_summary" class="text-sm font-medium">Change summary</label>
@@ -91,6 +120,17 @@
             <input type="checkbox" name="use_ai" class="rounded border-input">
             Format plain text with AI before saving
           </label>
+          <div>
+            <label for="document" class="text-sm font-medium">Import document</label>
+            <input id="document" name="document" type="file"
+              accept=".md,.markdown,.txt,.pdf,.doc,.docx,.json,.csv,.xlsx,.html,.fb2"
+              class="mt-1 block w-full text-sm">
+          </div>
+          <p class="text-sm text-muted-foreground">
+            Or <a href="{% url 'wiki:import_url' %}" class="text-primary hover:underline">import from a URL</a>
+            (Wikipedia, RSS, docs, other wikis).
+          </p>
+          {% endif %}
           <div>
             <label for="wikipedia_url" class="text-sm font-medium">Import from Wikipedia URL</label>
             <input id="wikipedia_url" type="url" placeholder="https://en.wikipedia.org/wiki/Same-origin_policy"
@@ -109,6 +149,18 @@
             </label>
           </div>
           <p id="wikipedia-import-status" class="notion-hint hidden" role="status"></p>
+          {% if not edit_mode %}
+          <details class="text-sm">
+            <summary class="cursor-pointer text-muted-foreground">Bulk import (URLs or category)</summary>
+            <div class="mt-2 space-y-2">
+              <textarea id="wikipedia_bulk_urls" rows="3" class="notion-field-input w-full text-sm"
+                placeholder="One Wikipedia URL per line, or a Category: URL"></textarea>
+              <c-button type="button" variant="outline" size="sm" id="wikipedia-bulk-btn">
+                {% lucide "layers" size=14 %} Bulk import as pages
+              </c-button>
+              <p id="wikipedia-bulk-status" class="notion-hint hidden" role="status"></p>
+            </div>
+          </details>
           <details class="text-sm">
             <summary class="cursor-pointer text-muted-foreground">Or paste article text manually</summary>
             <div class="mt-2 space-y-2">
@@ -120,16 +172,18 @@
               <p id="wikipedia-paste-status" class="notion-hint hidden" role="status"></p>
             </div>
           </details>
-          <div>
-            <label for="document" class="text-sm font-medium">Import document</label>
-            <input id="document" name="document" type="file"
-              accept=".md,.markdown,.txt,.pdf,.doc,.docx,.json,.csv,.xlsx,.html,.fb2"
-              class="mt-1 block w-full text-sm">
-          </div>
-          <p class="text-sm text-muted-foreground">
-            Or <a href="{% url 'wiki:import_url' %}" class="text-primary hover:underline">import from a URL</a>
-            (Wikipedia, RSS, docs, other wikis).
-          </p>
+          {% else %}
+          <details class="text-sm">
+            <summary class="cursor-pointer text-muted-foreground">Or paste article text manually</summary>
+            <div class="mt-2 space-y-2">
+              <input id="wikipedia_source_url" type="url" placeholder="Optional: Wikipedia URL for citation links"
+                class="notion-field-input">
+              <c-button type="button" variant="ghost" size="sm" id="wikipedia-paste-btn">
+                {% lucide "languages" size=14 %} Format pasted text
+              </c-button>
+              <p id="wikipedia-paste-status" class="notion-hint hidden" role="status"></p>
+            </div>
+          </details>
           {% endif %}
           <div>
             <label for="media_files" class="text-sm font-medium">Attach files on save</label>
@@ -165,7 +219,13 @@
     uploadUrl: "{% url 'wiki:editor_upload' %}",
     pasteWikipediaUrl: "{% url 'wiki:paste_wikipedia' %}",
     importWikipediaUrl: "{% url 'wiki:import_wikipedia' %}",
+    bulkImportWikipediaUrl: "{% url 'wiki:bulk_import_wikipedia' %}",
+  };
+  window.WIKI_TAXONOMY = {
+    quickCategoryUrl: "{% url 'wiki:quick_category' %}",
+    tagSuggestUrl: "{% url 'wiki:tag_suggest' %}",
   };
 </script>
 <script src="{% static 'js/create-wiki.js' %}"></script>
+<script src="{% static 'js/wiki-taxonomy.js' %}"></script>
 {% endblock %}

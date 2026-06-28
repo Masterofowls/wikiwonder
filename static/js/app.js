@@ -125,27 +125,54 @@
 
   // Instant search typeahead — must register before Alpine starts (app.js loads first)
   function registerInstantSearch() {
-    window.Alpine.data('instantSearch', (searchPageUrl = '/search/') => ({
+    window.Alpine.data('instantSearch', (homeUrl = '/', fullSearchUrl = '/search/') => ({
       query: '',
       results: [],
       open: false,
-      searchPageUrl,
+      loading: false,
+      hasMore: false,
+      total: 0,
+      homeUrl,
+      fullSearchUrl,
+      initFromParam() {
+        const params = new URLSearchParams(window.location.search);
+        const q = params.get('q');
+        if (q) this.query = q;
+      },
+      typeLabel(type) {
+        const labels = {
+          wiki: 'Wiki',
+          category: 'Category',
+          tag: 'Tag',
+          link: 'Link',
+          cms: 'CMS',
+        };
+        return labels[type] || type;
+      },
       async fetchResults() {
         const q = this.query.trim();
         if (q.length < 2) {
           this.results = [];
           this.open = false;
+          this.hasMore = false;
+          this.total = 0;
           return;
         }
+        this.loading = true;
         try {
-          const resp = await fetch(`/api/search/?q=${encodeURIComponent(q)}&limit=6`);
+          const resp = await fetch(`/api/search/?q=${encodeURIComponent(q)}&limit=8`);
           if (!resp.ok) throw new Error('Search failed');
           const data = await resp.json();
           this.results = data.results || [];
+          this.hasMore = Boolean(data.has_more);
+          this.total = data.total || this.results.length;
           this.open = true;
         } catch (_) {
           this.results = [];
           this.open = false;
+          this.hasMore = false;
+        } finally {
+          this.loading = false;
         }
       },
     }));

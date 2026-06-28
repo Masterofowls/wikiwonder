@@ -10,5 +10,5 @@ class InstantSearchAPIView(View):
     def get(self, request):
         query = request.GET.get("q", "").strip()
         limit = min(int(request.GET.get("limit", 8)), 20)
-        results = instant_search(query, limit=limit)
-        return JsonResponse({"query": query, "results": results, "count": len(results)})
+        payload = instant_search(query, limit=limit)
+        return JsonResponse({"query": query, **payload})

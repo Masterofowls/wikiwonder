@@ -885,3 +885,39 @@ body.mobile-nav-open .mobile-page-bar,
 body.reading-mode .mobile-page-bar {
   display: none;
 }
+
+/* Search typeahead */
+.search-typeahead__badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem 0.45rem;
+  border-radius: 9999px;
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: color-mix(in oklch, var(--primary) 12%, transparent);
+  color: var(--primary);
+  flex-shrink: 0;
+}
+.search-typeahead__badge--inline {
+  font-size: 0.55rem;
+  padding: 0.05rem 0.35rem;
+}
+.search-result-card .search-typeahead__badge {
+  margin-bottom: 0.25rem;
+}
+
+/* Bookmark toggle — active state is red */
+.bookmark-btn--active,
+.bookmark-btn--active svg {
+  color: #dc2626 !important;
+  border-color: color-mix(in oklch, #dc2626 35%, var(--border)) !important;
+  fill: #dc2626;
+}
+.bookmark-btn--active:hover {
+  background: color-mix(in oklch, #dc2626 8%, transparent) !important;
+}
+.mobile-page-bar__btn.bookmark-btn--active {
+  color: #dc2626;
+}

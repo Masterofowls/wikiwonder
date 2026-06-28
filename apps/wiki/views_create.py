@@ -10,6 +10,17 @@ from apps.media.services import attach_files_to_page
 from apps.wiki.models import WikiPage
 from apps.wiki.services.markdown import extract_summary
 from apps.wiki.services.pages import create_page_from_markdown
+from apps.wiki.services.taxonomy import apply_page_taxonomy, parse_tag_names
+
+
+def _taxonomy_context(page=None):
+    from apps.wiki.models import Category
+
+    return {
+        "all_categories": Category.objects.order_by("name"),
+        "initial_tags": ", ".join(page.tags.values_list("name", flat=True)) if page else "",
+        "initial_category_id": str(page.category_id) if page and page.category_id else "",
+    }
 
 
 class CreateWikiPageView(LoginRequiredMixin, TemplateView):
@@ -22,6 +33,7 @@ class CreateWikiPageView(LoginRequiredMixin, TemplateView):
 
         ctx["seo"] = site_defaults()
         ctx["ai_configured"] = get_ai_service().is_configured
+        ctx.update(_taxonomy_context())
         return ctx
 
     def post(self, request, *args, **kwargs):
@@ -89,6 +101,14 @@ class CreateWikiPageView(LoginRequiredMixin, TemplateView):
             page.save(update_fields=["cover_image", "updated_at"])
 
         attach_files_to_page(page, media_files)
+
+        apply_page_taxonomy(
+            page,
+            category_id=request.POST.get("category", ""),
+            new_category_name=request.POST.get("new_category_name", ""),
+            tag_names=parse_tag_names(request.POST.get("tags", "")),
+            user=request.user,
+        )
 
         page.refresh_from_db()
         messages.success(

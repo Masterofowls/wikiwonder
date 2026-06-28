@@ -10,6 +10,8 @@ from apps.wiki.models import WikiPage
 from apps.wiki.permissions import can_edit_page
 from apps.wiki.services.markdown import extract_summary
 from apps.wiki.services.pages import update_page_content
+from apps.wiki.services.taxonomy import apply_page_taxonomy, parse_tag_names
+from apps.wiki.views_create import _taxonomy_context
 
 
 class EditWikiPageView(LoginRequiredMixin, TemplateView):
@@ -36,6 +38,7 @@ class EditWikiPageView(LoginRequiredMixin, TemplateView):
         from django.urls import reverse
 
         ctx["form_action"] = reverse("wiki:edit_page", kwargs={"slug": self.page.slug})
+        ctx.update(_taxonomy_context(self.page))
         return ctx
 
     def post(self, request, slug):
@@ -72,6 +75,14 @@ class EditWikiPageView(LoginRequiredMixin, TemplateView):
         )
 
         attach_files_to_page(page, media_files)
+
+        apply_page_taxonomy(
+            page,
+            category_id=request.POST.get("category", ""),
+            new_category_name=request.POST.get("new_category_name", ""),
+            tag_names=parse_tag_names(request.POST.get("tags", "")),
+            user=request.user,
+        )
 
         messages.success(request, f'Wiki page “{page.title}” updated.')
         return redirect(page.get_absolute_url())

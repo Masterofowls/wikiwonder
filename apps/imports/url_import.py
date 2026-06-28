@@ -95,7 +95,42 @@ def import_url_as_wiki_page(
     if preview.get("summary"):
         page.summary = preview["summary"]
         page.save(update_fields=["summary", "updated_at"])
+    if preview.get("source_type") == SOURCE_WIKIPEDIA:
+        from apps.imports.wikipedia_metadata import apply_wikipedia_import_metadata
+
+        apply_wikipedia_import_metadata(page, preview)
     return page
+
+
+def bulk_import_wikipedia(
+    urls: list[str],
+    *,
+    author=None,
+    download_media: bool = False,
+    publish: bool = False,
+) -> list[dict]:
+    """Import multiple Wikipedia URLs; returns per-URL results."""
+    from apps.imports.sources.fetch import FetchError
+
+    results: list[dict] = []
+    for url in urls:
+        url = (url or "").strip()
+        if not url:
+            continue
+        try:
+            page = import_url_as_wiki_page(
+                url,
+                author=author,
+                source_type=SOURCE_WIKIPEDIA,
+                download_media=download_media,
+                publish=publish,
+            )
+            results.append({"url": url, "ok": True, "slug": page.slug, "title": page.title})
+        except FetchError as exc:
+            results.append({"url": url, "ok": False, "error": str(exc)})
+        except Exception as exc:
+            results.append({"url": url, "ok": False, "error": str(exc)})
+    return results
 
 
 def get_supported_sources() -> list[dict]:

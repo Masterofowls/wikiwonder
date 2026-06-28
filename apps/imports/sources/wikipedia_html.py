@@ -7,6 +7,11 @@ from urllib.parse import unquote, urljoin
 from bs4 import BeautifulSoup, Tag
 
 from apps.imports.sources.convert import html_to_markdown, normalize_wiki_markdown
+from apps.imports.sources.wikipedia_diagrams import (
+    media_to_figure_markdown,
+    upgrade_wikimedia_thumb_url,
+)
+from apps.imports.sources.wikipedia_infobox import extract_infobox_markdown
 
 REMOVE_SELECTORS = (
     ".navbox",
@@ -40,8 +45,6 @@ REMOVE_SELECTORS = (
     ".rellink",
     ".mw-cite-backlink",
     ".mw-headline-anchor",
-    ".galleryframe",
-    ".mw-gallery-traditional",
 )
 
 HATNOTE_SELECTORS = (".hatnote", ".dablink", ".rellink")
@@ -104,7 +107,14 @@ def _convert_internal_links(root: Tag, lang: str) -> None:
             continue
         if href.startswith("/wiki/") or href.startswith("./") or href.startswith(wiki_prefix):
             title = _wiki_href_to_title(href)
-            if title.startswith("File:") or title.startswith("Category:"):
+            if title.startswith("File:"):
+                # Keep diagram/image inside file links (figure/thumb wrappers)
+                if anchor.find("img") is not None:
+                    anchor.unwrap()
+                else:
+                    anchor.replace_with(anchor.get_text(strip=True) or "")
+                continue
+            if title.startswith("Category:"):
                 anchor.replace_with(anchor.get_text())
                 continue
             anchor.replace_with(f"[[{title}]]")
@@ -147,7 +157,12 @@ def _convert_tables(root: Tag) -> None:
 
 
 def _resolve_image_url(img: Tag, base_url: str) -> str:
-    src = img.get("src") or ""
+    src = ""
+    for attr in ("src", "data-src", "data-file-src"):
+        candidate = img.get(attr) or ""
+        if candidate and not candidate.startswith("data:"):
+            src = candidate
+            break
     if src.startswith("//"):
         src = "https:" + src
     elif src.startswith("/"):
@@ -161,27 +176,47 @@ def _resolve_image_url(img: Tag, base_url: str) -> str:
                 best = "https:" + best
             if best.startswith("http"):
                 src = best
-    return src
+    return upgrade_wikimedia_thumb_url(src)
+
+
+def _figure_caption(container: Tag) -> str:
+    cap = container.select_one(".thumbcaption, figcaption, .gallerytext")
+    return cap.get_text(" ", strip=True) if cap else ""
+
+
+def _convert_galleries(root: Tag, base_url: str) -> None:
+    """Convert Wikipedia image galleries to markdown figures."""
+    for gallery in root.select("ul.gallery, div.gallery, .mw-gallery-traditional"):
+        blocks: list[str] = []
+        for box in gallery.select("li.gallerybox, .gallerybox"):
+            img = box.find("img")
+            if not img:
+                continue
+            src = _resolve_image_url(img, base_url)
+            if not src:
+                continue
+            caption = _figure_caption(box)
+            alt = caption or img.get("alt") or "Gallery image"
+            blocks.append(media_to_figure_markdown(src, alt, caption))
+        if blocks:
+            gallery.replace_with("\n\n".join(blocks) + "\n\n")
+        else:
+            gallery.decompose()
 
 
 def _convert_media(root: Tag, base_url: str) -> None:
-    for thumb in root.select(".thumb, figure"):
-        img = thumb.find("img")
+    _convert_galleries(root, base_url)
+
+    for container in root.select(".thumb, figure"):
+        img = container.find("img")
         if not img:
             continue
         src = _resolve_image_url(img, base_url)
         if not src:
             continue
-        caption = ""
-        cap = thumb.select_one(".thumbcaption, figcaption")
-        if cap:
-            caption = cap.get_text(" ", strip=True)
-        alt = caption or img.get("alt") or "Image"
-        alt = alt.replace('"', "'")
-        replacement = f'<p><img src="{src}" alt="{alt}" /></p>'
-        if caption:
-            replacement += f"<p><em>{caption}</em></p>"
-        thumb.replace_with(BeautifulSoup(replacement, "html.parser"))
+        caption = _figure_caption(container)
+        alt = caption or img.get("alt") or img.get("title") or "Diagram"
+        container.replace_with(media_to_figure_markdown(src, alt, caption) + "\n\n")
 
     for audio in root.find_all("audio"):
         source = audio.find("source")
@@ -207,10 +242,47 @@ def _convert_media(root: Tag, base_url: str) -> None:
 
     for img in root.find_all("img"):
         src = _resolve_image_url(img, base_url)
-        if not src or "icon" in src.lower():
+        if not src:
             img.decompose()
             continue
+        if "icon" in src.lower() and "diagram" not in src.lower():
+            img.decompose()
+            continue
+        parent = img.parent
+        if parent and parent.name in ("figure", "p", "div", "a", "span"):
+            alt = img.get("alt") or "Image"
+            img.replace_with(media_to_figure_markdown(src, alt))
+            continue
         img["src"] = src
+
+
+def _convert_math(root: Tag, base_url: str = "") -> None:
+    """Preserve Wikipedia math as LaTeX delimiters for KaTeX rendering."""
+    for span in root.select(".mwe-math-element, span.mwe-math-fallback-image-inline"):
+        alttext = span.get("data-alt", "") or span.get("alttext", "")
+        math_tag = span.find("math")
+        fallback_img = span.find("img")
+        tex = alttext or (math_tag.get("alttext", "") if math_tag else "") or span.get_text(strip=True)
+        if not tex and fallback_img is not None:
+            src = _resolve_image_url(fallback_img, base_url)
+            if src:
+                alt = fallback_img.get("alt") or "Formula"
+                span.replace_with(media_to_figure_markdown(src, alt))
+                continue
+        if not tex:
+            continue
+        tex = tex.strip()
+        display = span.find_parent(class_="mwe-math-element") and "display" in (span.get("class") or [])
+        if display or len(tex) > 60:
+            replacement = f"\n$$\n{tex}\n$$\n"
+        else:
+            replacement = f"${tex}$"
+        span.replace_with(replacement)
+
+    for math in root.find_all("math"):
+        tex = math.get("alttext", "") or math.get_text(strip=True)
+        if tex:
+            math.replace_with(f"${tex}$")
 
 
 def _normalize_headings(root: Tag) -> None:
@@ -243,9 +315,13 @@ def wikipedia_html_to_markdown(html: str, *, base_url: str, lang: str = "en") ->
     """Convert Wikipedia parse HTML to wiki markdown with structure preserved."""
     soup = BeautifulSoup(html or "", "html5lib")
     root = soup.select_one(".mw-parser-output") or soup
+    infobox_md, infobox_el = extract_infobox_markdown(root)
+    if infobox_el:
+        infobox_el.decompose()
     _inline_citation_markers(root)
     _remove_junk(root)
     _convert_hatnotes(root)
+    _convert_math(root, base_url)
     _convert_internal_links(root, lang)
     _convert_tables(root)
     _convert_media(root, base_url)
@@ -255,4 +331,6 @@ def wikipedia_html_to_markdown(html: str, *, base_url: str, lang: str = "en") ->
     md = _extract_table_markdown(md)
     md = re.sub(r"<blockquote>\s*(.*?)\s*</blockquote>", r"> \1", md, flags=re.DOTALL)
     md = normalize_wiki_markdown(md)
+    if infobox_md:
+        md = infobox_md + md
     return md

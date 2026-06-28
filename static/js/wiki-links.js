@@ -56,6 +56,18 @@
     `;
   }
 
+  function renderLocalWikiPreview(data) {
+    tooltip.innerHTML = `
+      <div class="p-3">
+        <p class="text-xs font-semibold text-primary">Open on WikiWonder</p>
+        <p class="text-sm font-semibold leading-snug mt-1">${escapeHtml(data.title || data.slug)}</p>
+        <p class="text-xs text-muted-foreground mt-1">${escapeHtml(data.url || '')}</p>
+      </div>
+    `;
+  }
+
+  const WIKI_URL_RE = /^https?:\/\/([a-z]{2,3})\.wikipedia\.org\/wiki\//i;
+
   function wikiPreviewUrl(href) {
     if (!href.startsWith('/wiki/')) return null;
     const parts = href.replace(/\/$/, '').split('/');
@@ -95,6 +107,22 @@
         if (activeLink !== link) return;
         renderWikiPreview(html);
       } else if (/^https?:\/\//i.test(url)) {
+        if (WIKI_URL_RE.test(url)) {
+          const localKey = `local:${url}`;
+          let local = cache.get(localKey);
+          if (local === undefined) {
+            const resp = await fetch(`/wiki/api/local-page/?url=${encodeURIComponent(url)}`);
+            local = await resp.json();
+            cache.set(localKey, local);
+          }
+          if (activeLink !== link) return;
+          if (local && local.local) {
+            renderLocalWikiPreview(local);
+            tooltip.classList.add('visible');
+            positionTooltip(e);
+            return;
+          }
+        }
         let data = cache.get(url);
         if (!data) {
           const resp = await fetch(`/api/link-preview/?url=${encodeURIComponent(url)}`);

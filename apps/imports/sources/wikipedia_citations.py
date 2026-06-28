@@ -48,5 +48,20 @@ def fetch_wikipedia_citations(source_url: str) -> dict[str, dict]:
         label = li.get_text(" ", strip=True)
         label = re.sub(r"^\[\d+\]\s*", "", label)
         label = label[:240] if label else f"Citation {num}"
-        refs[num] = {"url": url or f"#cite-note-{num}", "label": label}
+        status = "unknown"
+        refs[num] = {"url": url or f"#cite-note-{num}", "label": label, "status": status}
+    return refs
+
+
+def validate_citation_refs(refs: dict[str, dict], *, max_checks: int = 12) -> dict[str, dict]:
+    """HEAD-check external citation URLs; annotate refs with status."""
+    from apps.wiki.services.broken_links import check_external_url
+
+    checked = 0
+    for _num, ref in refs.items():
+        url = ref.get("url", "")
+        if not url.startswith("http") or checked >= max_checks:
+            continue
+        ref["status"] = check_external_url(url)
+        checked += 1
     return refs

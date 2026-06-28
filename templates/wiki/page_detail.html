@@ -6,6 +6,7 @@
 
 {% block extra_head %}
 {% django_meta_tags %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous">
 {% if hreflang_links %}
 {% for link in hreflang_links %}
 <link rel="alternate" hreflang="{{ link.code }}" href="{{ link.href }}">
@@ -64,8 +65,11 @@
           {% if user.is_authenticated %}
           <form method="post" action="{% url 'wiki:toggle_bookmark' page.slug %}" data-bookmark-form class="shrink-0">
             {% csrf_token %}
-            <c-button type="submit" variant="{% if is_bookmarked %}secondary{% else %}outline{% endif %}" size="sm">
-              {% if is_bookmarked %}★ Bookmarked{% else %}☆ Bookmark{% endif %}
+            <c-button type="submit" variant="outline" size="sm" data-bookmark-btn
+              {% if is_bookmarked %}class="bookmark-btn bookmark-btn--active"{% else %}class="bookmark-btn"{% endif %}
+              aria-pressed="{% if is_bookmarked %}true{% else %}false{% endif %}">
+              {% lucide "bookmark" size=14 %}
+              <span data-bookmark-label>{% if is_bookmarked %}Bookmarked{% else %}Bookmark{% endif %}</span>
             </c-button>
           </form>
           {% endif %}
@@ -74,7 +78,7 @@
     </header>
 
     <nav class="mobile-page-bar md:hidden" aria-label="Quick actions">
-      <a href="{% url 'wiki:search' %}" class="mobile-page-bar__btn">
+      <a href="{% url 'wiki:home' %}#home-search" class="mobile-page-bar__btn">
         {% lucide "search" size=20 %}
         <span>Search</span>
       </a>
@@ -89,9 +93,10 @@
       {% if user.is_authenticated %}
       <form method="post" action="{% url 'wiki:toggle_bookmark' page.slug %}" class="contents" data-bookmark-form>
         {% csrf_token %}
-        <button type="submit" class="mobile-page-bar__btn">
+        <button type="submit" class="mobile-page-bar__btn bookmark-btn {% if is_bookmarked %}bookmark-btn--active{% endif %}"
+          data-bookmark-btn aria-pressed="{% if is_bookmarked %}true{% else %}false{% endif %}">
           {% lucide "bookmark" size=20 %}
-          <span>{% if is_bookmarked %}Saved{% else %}Save{% endif %}</span>
+          <span data-bookmark-mobile-label>{% if is_bookmarked %}Saved{% else %}Save{% endif %}</span>
         </button>
       </form>
       {% endif %}
@@ -182,12 +187,79 @@
     </div>
   </section>
   {% endif %}
+
+  {% if backlinks %}
+  <section class="notion-related mt-12">
+    <h2 class="text-xl font-display font-semibold mb-4 flex items-center gap-2">
+      {% lucide "corner-down-left" size=20 css_class="text-primary" %} What links here
+    </h2>
+    <ul class="space-y-2">
+      {% for bl in backlinks %}
+      <li>
+        <a href="{{ bl.get_absolute_url }}" class="text-primary hover:underline">{{ bl.title }}</a>
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  {% if user.is_staff and link_audit %}
+  <section class="notion-related mt-12 border border-border rounded-lg p-4 bg-muted/30">
+    <h2 class="text-lg font-semibold mb-2">Link audit (staff)</h2>
+    {% if link_audit.broken_internal %}
+    <p class="text-sm font-medium text-destructive">Broken internal links ({{ link_audit.broken_internal|length }})</p>
+    <ul class="text-sm list-disc pl-5 mb-3">
+      {% for item in link_audit.broken_internal %}
+      <li><code>/wiki/{{ item.target }}</code></li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+    {% if link_audit.fixable_internal %}
+    <p class="text-sm font-medium">Fixable via aliases ({{ link_audit.fixable_internal|length }})</p>
+    <ul class="text-sm list-disc pl-5 mb-3">
+      {% for item in link_audit.fixable_internal %}
+      <li><code>/wiki/{{ item.target }}</code> → <a href="{% url 'wiki:page_detail' item.resolved_slug %}">{{ item.resolved_slug }}</a></li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+    {% if link_audit.broken_external %}
+    <p class="text-sm font-medium text-destructive">Broken external links ({{ link_audit.broken_external|length }})</p>
+    <ul class="text-sm list-disc pl-5">
+      {% for item in link_audit.broken_external %}
+      <li><a href="{{ item.url }}" class="text-primary hover:underline break-all">{{ item.url }}</a> ({{ item.status }})</li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+    {% if not link_audit.broken_internal and not link_audit.broken_external and not link_audit.fixable_internal %}
+    <p class="text-sm text-muted-foreground">No broken links detected in sampled URLs.</p>
+    {% endif %}
+    <p class="text-xs text-muted-foreground mt-2">
+      Run <code>python manage.py repair_wiki_links --apply</code> to fix stored markdown.
+    </p>
+  </section>
+  {% endif %}
 </article>
 {% endblock %}
 
 {% block extra_js %}
 <script src="{% static 'js/wiki-links.js' %}" defer></script>
+<script src="{% static 'js/wiki-bookmarks.js' %}" defer></script>
 <script src="{% static 'js/wiki-toc.js' %}" defer></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (typeof renderMathInElement === 'function') {
+      renderMathInElement(document.querySelector('.wiki-page') || document.body, {
+        delimiters: [
+          { left: '$$', right: '$$', display: true },
+          { left: '$', right: '$', display: false },
+        ],
+        throwOnError: false,
+      });
+    }
+  });
+</script>
 {% if ai_configured %}
 <script src="{% static 'js/wiki-ai.js' %}" defer></script>
 {% endif %}

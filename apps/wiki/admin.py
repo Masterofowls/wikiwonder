@@ -14,6 +14,7 @@ from apps.wiki.models import (
     SharedLink,
     Tag,
     WikiPage,
+    WikiPageAlias,
     WikiSection,
 )
 from apps.wiki.services.link_preview import enrich_shared_link
@@ -25,6 +26,13 @@ class WikiSectionInline(admin.TabularInline):
     extra = 0
     fields = ("order", "title", "anchor", "content")
     ordering = ("order",)
+
+
+class WikiPageAliasInline(admin.TabularInline):
+    model = WikiPageAlias
+    extra = 1
+    fields = ("alias", "created_at")
+    readonly_fields = ("created_at",)
 
 
 class PageRevisionInline(admin.TabularInline):
@@ -73,12 +81,13 @@ class WikiPageAdmin(TranslationAdmin, ImportExportModelAdmin):
     prepopulated_fields = {"slug": ("title",)}
     filter_horizontal = ("tags",)
     readonly_fields = ("view_count", "created_at", "updated_at", "preview_link")
-    inlines = [WikiSectionInline, PageRevisionInline]
-    actions = ["publish_pages", "ai_summarize_action", "split_sections_action"]
+    inlines = [WikiSectionInline, WikiPageAliasInline, PageRevisionInline]
+    actions = ["publish_pages", "ai_summarize_action", "split_sections_action", "audit_links_action"]
     fieldsets = (
         (None, {"fields": ("title", "slug", "status", "preview_link")}),
         ("Content", {"fields": ("summary", "content", "cover_image", "editorial_notes")}),
         ("Organization", {"fields": ("category", "tags", "is_featured")}),
+        ("Import", {"fields": ("source_url",)}),
         ("Meta", {"fields": ("author", "view_count", "published_at", "created_at", "updated_at")}),
     )
 
@@ -159,6 +168,20 @@ class WikiPageAdmin(TranslationAdmin, ImportExportModelAdmin):
             sync_page_sections(page)
             count += 1
         self.message_user(request, f"Re-split sections for {count} page(s).")
+
+    @admin.action(description="Audit broken links on selected pages")
+    def audit_links_action(self, request, queryset):
+        from apps.wiki.services.broken_links import audit_page_links
+
+        broken_total = 0
+        for page in queryset:
+            audit = audit_page_links(page)
+            broken_total += len(audit["broken_internal"]) + len(audit["broken_external"])
+        self.message_user(
+            request,
+            f"Found {broken_total} broken link(s) across {queryset.count()} page(s). "
+            "Use page detail → Check links for details.",
+        )
 
 
 @admin.register(EditSuggestion)

@@ -10,7 +10,7 @@ from apps.wiki.services.pages import create_page_from_markdown
 @pytest.mark.django_db
 class TestInstantSearch:
     def test_instant_search_requires_min_length(self):
-        assert instant_search("a") == []
+        assert instant_search("a")["results"] == []
 
     def test_instant_search_finds_wiki_page(self, django_user_model):
         user = django_user_model.objects.create_user("searcher", password="test")
@@ -20,8 +20,8 @@ class TestInstantSearch:
             author=user,
             status=WikiPage.Status.PUBLISHED,
         )
-        results = instant_search("postgres")
-        assert any(r["type"] == "wiki" and "PostgreSQL" in r["title"] for r in results)
+        data = instant_search("postgres")
+        assert any(r["type"] == "wiki" and "PostgreSQL" in r["title"] for r in data["results"])
 
     def test_search_api(self, client, django_user_model):
         user = django_user_model.objects.create_user("apiuser", password="test")

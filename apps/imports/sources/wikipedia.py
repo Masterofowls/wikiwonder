@@ -11,13 +11,20 @@ from apps.imports.sources.convert import (
 )
 from apps.imports.sources.detect import wikipedia_page_title
 from apps.imports.sources.fetch import FetchError, fetch_json, origin_of
-from apps.imports.sources.wikipedia_citations import fetch_wikipedia_citations
+from apps.imports.sources.wikipedia_categories import fetch_wikipedia_categories
+from apps.imports.sources.wikipedia_citations import (
+    fetch_wikipedia_citations,
+    validate_citation_refs,
+)
+from apps.imports.sources.wikipedia_diagrams import embed_missing_diagrams
 from apps.imports.sources.wikipedia_html import wikipedia_html_to_markdown
 from apps.imports.sources.wikipedia_media import (
     enrich_markdown_with_lead_media,
     extract_inline_media,
+    fetch_lead_image,
     fetch_page_images,
     mirror_media_to_storage,
+    pick_cover_image,
 )
 from apps.wiki.services.citations import replace_numeric_citations
 from apps.wiki.services.wikilinks import process_all_wiki_links
@@ -64,12 +71,16 @@ def fetch_wikipedia(
 
     body_md = wikipedia_html_to_markdown(raw_html, base_url=base_url, lang=lang)
     refs = fetch_wikipedia_citations(canonical)
+    refs = validate_citation_refs(refs)
     body_md = replace_numeric_citations(body_md, refs)
     body_md = process_all_wiki_links(body_md)
 
     inline_media = extract_inline_media(raw_html, base_url=base_url)
-    api_media = fetch_page_images(lang, page_title)
+    api_media = fetch_page_images(lang, page_title, limit=60)
     all_media = inline_media + [m for m in api_media if m["url"] not in {x["url"] for x in inline_media}]
+    lead_image = fetch_lead_image(lang, page_title)
+    cover_candidate = pick_cover_image(all_media, lead_image)
+    categories = fetch_wikipedia_categories(lang, page_title)
 
     url_map: dict[str, str] = {}
     if download_media and all_media:
@@ -78,7 +89,8 @@ def fetch_wikipedia(
             for remote, local in url_map.items():
                 body_md = body_md.replace(remote, local)
     else:
-        body_md = enrich_markdown_with_lead_media(body_md, all_media, max_embeds=4)
+        body_md = embed_missing_diagrams(body_md, all_media, url_map=url_map)
+        body_md = enrich_markdown_with_lead_media(body_md, all_media, max_embeds=6)
 
     attribution = build_attribution_block(
         title=display_title,
@@ -115,5 +127,11 @@ def fetch_wikipedia(
             "media_count": len(all_media),
             "citation_count": len(refs),
             "mirrored_media": len(url_map),
+            "categories": categories,
+            "cover_image": cover_candidate,
+            "alias_titles": [display_title, page_title],
+            "citation_status": {
+                num: ref.get("status", "unknown") for num, ref in refs.items()
+            },
         },
     }

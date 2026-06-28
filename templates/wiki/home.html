@@ -17,8 +17,8 @@
       encyclopedia for notes, research, and collaborative knowledge.
     </p>
     <div class="flex flex-wrap gap-3">
-      <a href="{% url 'wiki:search' %}" class="btn-shimmer inline-flex items-center gap-2 h-10 px-8 rounded-md text-sm font-medium bg-primary text-primary-foreground shadow hover:bg-primary/90 transition-all duration-300">
-        {% lucide "search" size=16 %} Explore pages
+      <a href="#home-search" class="btn-shimmer inline-flex items-center gap-2 h-10 px-8 rounded-md text-sm font-medium bg-primary text-primary-foreground shadow hover:bg-primary/90 transition-all duration-300">
+        {% lucide "search" size=16 %} Search wiki
       </a>
       <a href="{% url 'wiki:shared_links' %}" class="inline-flex items-center gap-2 h-10 px-8 rounded-md text-sm font-medium border border-input bg-background shadow-xs hover:bg-accent transition-all duration-300">
         {% lucide "share-2" size=16 %} Shared links
@@ -26,6 +26,62 @@
     </div>
   </div>
 </section>
+
+<!-- Inline search on home -->
+<section id="home-search" class="max-w-3xl mx-auto mb-10 fade-in-up"
+  x-data="instantSearch('{% url 'wiki:home' %}', '{% url 'wiki:search' %}')"
+  x-init="initFromParam(); if (query.length >= 2) fetchResults()"
+  @click.outside="open = false">
+  <form action="{% url 'wiki:home' %}" method="get" class="relative flex gap-2" @submit="if (!query.trim()) $event.preventDefault()">
+    <div class="relative flex-1">
+      <input type="search" name="q" x-model="query" @input.debounce.200ms="fetchResults()" @focus="fetchResults()"
+        placeholder="Search wiki pages, categories, tags…" value="{{ search_query }}"
+        class="flex h-11 w-full rounded-md border border-input bg-background px-4 text-sm shadow-xs focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
+        autocomplete="off" aria-label="Search wiki">
+      {% include "wiki/partials/search_typeahead.html" %}
+    </div>
+    <c-button type="submit" size="default">Search</c-button>
+  </form>
+</section>
+
+{% if search_query %}
+<section class="mb-10 fade-in-up">
+  <div class="flex items-center justify-between gap-4 mb-4">
+    <h2 class="text-xl font-display font-semibold">
+      Results for “{{ search_query }}”
+      {% if search_total %}<span class="text-muted-foreground font-normal text-base">({{ search_total }})</span>{% endif %}
+    </h2>
+    {% if search_has_more %}
+    <a href="{% url 'wiki:search' %}?q={{ search_query|urlencode }}" class="text-sm text-primary hover:underline">
+      Show all results
+    </a>
+    {% endif %}
+  </div>
+  {% if search_results %}
+  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+    {% for item in search_results %}
+    <a href="{{ item.url }}" class="search-result-card rounded-lg border border-border p-4 hover:bg-accent/50 transition-colors">
+      <span class="search-typeahead__badge">{{ item.type|title }}</span>
+      <p class="font-medium mt-1">{{ item.title }}</p>
+      <p class="text-sm text-muted-foreground line-clamp-2">{{ item.meta|default:item.snippet }}</p>
+    </a>
+    {% endfor %}
+  </div>
+  {% if search_has_more %}
+  <div class="mt-4 text-center">
+    <a href="{% url 'wiki:search' %}?q={{ search_query|urlencode }}">
+      <c-button variant="outline">Show all {{ search_total }} results</c-button>
+    </a>
+  </div>
+  {% endif %}
+  {% else %}
+  <c-alert>
+    <c-alert.title>No matches</c-alert.title>
+    <c-alert.description>Try different keywords or browse categories below.</c-alert.description>
+  </c-alert>
+  {% endif %}
+</section>
+{% endif %}
 
 <!-- Stats -->
 <section class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10 fade-in-up stagger-1">

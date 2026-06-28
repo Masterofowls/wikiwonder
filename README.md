@@ -11,7 +11,7 @@ Self-hosted Wikipedia with AI-powered import, CMS admin, PWA offline support, RS
 - **Admin CMS** — full Django admin with import/export, bulk actions
 - **RSS/Atom feed** at `/feeds/latest/`
 - **Bookmarks** for authenticated users
-- **Content previews** on hover
+- **Content previews** on hover (wiki pages, citations, local Wikipedia matches)
 - **PWA + offline** via service worker caching
 - **Responsive design** with Tailwind CSS
 - **REST API** for pages, bookmarks, import, and AI formatting
@@ -183,7 +183,10 @@ curl https://wikiwonder.fly.dev/health/
 | `/api/import/sources/` | GET | Optional | Supported URL import source types |
 | `/api/import/url/preview/` | POST | Required | Preview import from URL |
 | `/api/import/url/` | POST | Required | Create page from URL |
-| `/wiki/import/` | GET/POST | Required | Import from URL (web UI) |
+| `/wiki/api/import-wikipedia/` | POST | Required | Import Wikipedia article → markdown preview |
+| `/wiki/api/bulk-import-wikipedia/` | POST | Required | Bulk import URLs or category |
+| `/wiki/api/local-page/` | GET | Optional | Resolve Wikipedia URL to local page |
+| `/wiki/<slug>/link-audit/` | GET | Staff | JSON broken-link report |
 | `/api/ai/status/` | GET | None | Cerebras configured + model |
 | `/api/ai/format/` | POST | Required | Format text → markdown + title + summary |
 | `/api/ai/chat/` | POST | Required | Cerebras chat completion |
@@ -200,6 +203,39 @@ curl -X POST http://localhost:9000/api/import/create/ \
   -u admin:admin \
   -d '{"text": "My raw notes about Python...\n\nSECTION ONE\nDetails here.", "use_ai": true, "publish": true}'
 ```
+
+### Wikipedia URL import
+
+Import a single article into the create/edit editor or save as a page:
+
+```bash
+# Preview in editor (authenticated)
+curl -X POST http://localhost:9000/wiki/api/import-wikipedia/ \
+  -H "Content-Type: application/json" \
+  -b sessionid=... \
+  -d '{"url": "https://en.wikipedia.org/wiki/Same-origin_policy", "download_media": false}'
+
+# Bulk import (max 30 URLs or one category)
+curl -X POST http://localhost:9000/wiki/api/bulk-import-wikipedia/ \
+  -H "Content-Type: application/json" \
+  -b sessionid=... \
+  -d '{"urls": ["https://en.wikipedia.org/wiki/Cross-site_scripting"], "publish": true}'
+
+# Category import
+curl -X POST http://localhost:9000/wiki/api/bulk-import-wikipedia/ \
+  -H "Content-Type: application/json" \
+  -b sessionid=... \
+  -d '{"category_url": "https://en.wikipedia.org/wiki/Category:Web_security", "publish": true}'
+```
+
+**Link behavior**
+
+- `[[Page Title]]` and Wikipedia URLs resolve to local `/wiki/slug/` when a published page (or alias) exists
+- Render-time link repair fixes nested/broken markdown links
+- Persist repairs: `uv run python manage.py repair_wiki_links --apply`
+- Hover external Wikipedia links shows “Open on WikiWonder” when a local page exists (`/wiki/api/local-page/`)
+
+**Mirror media:** set `download_media: true` to copy images/video/audio into wiki storage (slower, works offline).
 
 ## Project Structure
 
@@ -229,6 +265,9 @@ uv run ruff format .
 
 # Test
 uv run pytest
+
+# Playwright E2E (install browser once: uv run playwright install chromium)
+uv run pytest tests/e2e/
 
 # Create superuser
 uv run python manage.py createsuperuser

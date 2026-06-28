@@ -74,6 +74,11 @@ class WikiPage(ModelMeta, models.Model):
     cover_image = models.ImageField(
         upload_to="covers/", blank=True, null=True, help_text="Card hero image"
     )
+    source_url = models.URLField(
+        max_length=2048,
+        blank=True,
+        help_text="Original import URL (e.g. Wikipedia article)",
+    )
     is_featured = models.BooleanField(default=False, db_index=True)
     view_count = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
@@ -282,3 +287,19 @@ class EditSuggestion(models.Model):
 
     def __str__(self):
         return f"Suggestion for {self.page.title} by {self.author}"
+
+
+class WikiPageAlias(models.Model):
+    """Alternate titles/slugs that resolve to a wiki page (Wikipedia titles, abbreviations)."""
+
+    page = models.ForeignKey(WikiPage, on_delete=models.CASCADE, related_name="aliases")
+    alias = models.CharField(max_length=255, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["alias"]
+        unique_together = [("page", "alias")]
+        indexes = [models.Index(fields=["alias"])]
+
+    def __str__(self):
+        return f"{self.alias} → {self.page.slug}"

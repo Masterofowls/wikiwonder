@@ -101,7 +101,52 @@ class WikipediaUrlImportView(LoginRequiredMixin, View):
                 "section_count": preview.get("section_count", 0),
                 "media_count": preview.get("meta", {}).get("media_count", 0),
                 "citation_count": preview.get("meta", {}).get("citation_count", 0),
+                "category_count": len(preview.get("meta", {}).get("categories") or []),
                 "source_url": preview["source_url"],
                 "meta": preview.get("meta", {}),
             }
         )
+
+
+class WikipediaBulkImportView(LoginRequiredMixin, View):
+    """POST JSON { urls?, category_url?, download_media?, publish? } → bulk import results."""
+
+    def post(self, request):
+        try:
+            payload = json.loads(request.body.decode() or "{}")
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+        urls = [u.strip() for u in (payload.get("urls") or []) if u and u.strip()]
+        category_url = (payload.get("category_url") or "").strip()
+        download_media = bool(payload.get("download_media"))
+        publish = bool(payload.get("publish"))
+
+        from apps.imports.sources.detect import wikipedia_page_title
+        from apps.imports.sources.wikipedia_categories import (
+            fetch_wikipedia_category_articles,
+            wikipedia_article_urls,
+        )
+        from apps.imports.url_import import bulk_import_wikipedia
+
+        if category_url:
+            parsed = wikipedia_page_title(category_url)
+            if not parsed:
+                return JsonResponse({"error": "Not a valid Wikipedia category URL"}, status=400)
+            lang, cat_title = parsed
+            titles = fetch_wikipedia_category_articles(lang, cat_title, limit=25)
+            urls.extend(wikipedia_article_urls(lang, titles))
+
+        if not urls:
+            return JsonResponse({"error": "Provide urls or category_url"}, status=400)
+        if len(urls) > 30:
+            return JsonResponse({"error": "Maximum 30 URLs per bulk import"}, status=400)
+
+        results = bulk_import_wikipedia(
+            urls,
+            author=request.user,
+            download_media=download_media,
+            publish=publish,
+        )
+        ok_count = sum(1 for r in results if r.get("ok"))
+        return JsonResponse({"results": results, "imported": ok_count, "total": len(results)})

@@ -56,6 +56,41 @@ class TestWikipediaHtmlConverter:
         assert "upload.wikimedia.org" in md
         assert "Example diagram" in md or "Diagram" in md
 
+    def test_converts_figure_diagram_with_file_link(self):
+        html = """
+        <div class="mw-parser-output">
+        <h2><span class="mw-headline" id="Mode">Mode of operation</span></h2>
+        <figure class="mw-default-size" typeof="mw:File/Thumb">
+          <a href="/wiki/File:ContentSecurityPolicy3_diagram.png" class="mw-file-description">
+            <img src="//upload.wikimedia.org/wikipedia/commons/thumb/0/09/ContentSecurityPolicy3_diagram.png/250px-ContentSecurityPolicy3_diagram.png"
+              srcset="//upload.wikimedia.org/wikipedia/commons/thumb/0/09/ContentSecurityPolicy3_diagram.png/500px-ContentSecurityPolicy3_diagram.png 2x"
+              alt="Diagram" class="mw-file-element" />
+          </a>
+          <figcaption>Mapping between HTML5 and JavaScript features and Content Security Policy controls</figcaption>
+        </figure>
+        <p>Body text after diagram.</p>
+        </div>
+        """
+        md = wikipedia_html_to_markdown(html, base_url="https://en.wikipedia.org", lang="en")
+        assert "ContentSecurityPolicy3_diagram" in md
+        assert "Mapping between HTML5" in md
+        assert "![Mapping between HTML5" in md or "![" in md
+
+    def test_converts_gallery_images(self):
+        html = """
+        <div class="mw-parser-output">
+        <ul class="gallery mw-gallery-traditional">
+          <li class="gallerybox">
+            <div class="thumb"><img src="//upload.wikimedia.org/wikipedia/commons/thumb/a/a1/Gallery.png/120px-Gallery.png" alt="A"></div>
+            <div class="gallerytext">Gallery item A</div>
+          </li>
+        </ul>
+        </div>
+        """
+        md = wikipedia_html_to_markdown(html, base_url="https://en.wikipedia.org", lang="en")
+        assert "Gallery.png" in md
+        assert "Gallery item A" in md
+
 
 @pytest.mark.django_db
 class TestWikipediaUrlImportAPI:

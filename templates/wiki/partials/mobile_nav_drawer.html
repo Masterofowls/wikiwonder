@@ -21,7 +21,6 @@
     </div>
     <nav class="mobile-nav" aria-label="Mobile navigation">
       {% include "wiki/partials/nav_link.html" with url="/" label="Home" block=1 %}
-      {% include "wiki/partials/nav_link.html" with url="/search/" label="Search" block=1 %}
       {% if user.is_authenticated %}
       {% include "wiki/partials/nav_link.html" with url="/wiki/new/" label="Create page" block=1 %}
       {% include "wiki/partials/nav_link.html" with url="/bookmarks/" label="Bookmarks" block=1 %}
@@ -54,9 +53,9 @@
       </select>
     </form>
     {% endif %}
-    <form action="{% url 'wiki:search' %}" method="get" class="mobile-nav-search mt-6 pt-4 border-t border-border flex flex-col gap-2">
+    <form action="{% url 'wiki:home' %}#home-search" method="get" class="mobile-nav-search mt-6 pt-4 border-t border-border flex flex-col gap-2">
       <label for="mobile-search" class="text-xs font-medium text-muted-foreground">Search wiki</label>
-      <input id="mobile-search" type="search" name="q" placeholder="Search…" class="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm" autocomplete="off">
+      <input id="mobile-search" type="search" name="q" placeholder="Search pages, categories, tags…" class="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm" autocomplete="off">
       <button type="submit" class="mobile-nav-submit">Search</button>
     </form>
   </aside>

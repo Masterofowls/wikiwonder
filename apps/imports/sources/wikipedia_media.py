@@ -7,6 +7,7 @@ from urllib.parse import urlencode
 from bs4 import BeautifulSoup
 
 from apps.imports.sources.fetch import FetchError, fetch_json, fetch_url
+from apps.imports.sources.wikipedia_diagrams import upgrade_wikimedia_thumb_url
 from apps.imports.sources.wikipedia_html import _resolve_image_url
 
 IMAGE_MIMES = frozenset({"image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml"})
@@ -62,6 +63,10 @@ def fetch_page_images(lang: str, page_title: str, *, limit: int = 40) -> list[di
         for info in page.get("imageinfo", []):
             mime = info.get("mime", "")
             url = info.get("thumburl") or info.get("url") or ""
+            if mime == "image/svg+xml":
+                url = info.get("thumburl") or url
+            if url:
+                url = upgrade_wikimedia_thumb_url(url)
             if not url:
                 continue
             kind = "image"
@@ -97,15 +102,17 @@ def extract_inline_media(html: str, *, base_url: str) -> list[dict]:
     found: list[dict] = []
     seen: set[str] = set()
 
-    for img in root.select(".thumb img, figure img, .infobox img"):
+    for img in root.select(
+        ".thumb img, figure img, .infobox img, .gallerybox img, .mw-file-element, img[data-src]"
+    ):
         src = _resolve_image_url(img, base_url)
         if not src or src in seen:
             continue
         seen.add(src)
         cap = ""
-        parent = img.find_parent(class_=["thumb", "infobox"])
+        parent = img.find_parent(["figure", "div", "li"])
         if parent:
-            cap_el = parent.select_one(".thumbcaption")
+            cap_el = parent.select_one(".thumbcaption, figcaption, .gallerytext")
             cap = cap_el.get_text(" ", strip=True) if cap_el else ""
         found.append({"title": img.get("alt") or "Image", "url": src, "kind": "image", "caption": cap})
 
@@ -205,3 +212,52 @@ def enrich_markdown_with_lead_media(
     if not embeds:
         return markdown
     return "\n\n".join(embeds) + "\n\n" + markdown.lstrip()
+
+
+def fetch_lead_image(lang: str, page_title: str) -> dict | None:
+    """Fetch Wikipedia page thumbnail / original image for cover."""
+    data = fetch_json(
+        _api_url(
+            lang,
+            {
+                "action": "query",
+                "titles": page_title,
+                "prop": "pageimages",
+                "piprop": "thumbnail|original",
+                "pithumbsize": 1200,
+                "redirects": "1",
+            },
+        )
+    )
+    for page in data.get("query", {}).get("pages", {}).values():
+        thumb = page.get("thumbnail", {})
+        original = page.get("original", {})
+        url = thumb.get("source") or original.get("source")
+        if url:
+            return {"url": url, "title": page_title, "kind": "image", "caption": "Lead image"}
+    return None
+
+
+def pick_cover_image(media_items: list[dict], lead: dict | None) -> dict | None:
+    """Choose best image for page cover (lead > infobox > first thumb)."""
+    if lead:
+        return lead
+    for item in media_items:
+        if item.get("kind") == "image" and item.get("url"):
+            return item
+    return None
+
+
+def download_cover_file(image: dict) -> tuple[bytes, str] | None:
+    """Download cover bytes and extension."""
+    url = image.get("url", "")
+    if not url:
+        return None
+    try:
+        body, content_type = fetch_url(url, timeout=30)
+    except FetchError:
+        return None
+    if len(body) > 6 * 1024 * 1024:
+        return None
+    ext = _ext_from_mime(content_type, image.get("mime", ""), url)
+    return body, ext

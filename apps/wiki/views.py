@@ -56,6 +56,18 @@ class HomeView(ListView):
             "views": agg["views"] or 0,
         }
         ctx["seo"] = home_seo()
+        query = self.request.GET.get("q", "").strip()
+        ctx["search_query"] = query
+        ctx["search_results"] = []
+        ctx["search_total"] = 0
+        ctx["search_has_more"] = False
+        if len(query) >= 2:
+            from apps.search.services import home_search
+
+            search_data = home_search(query, limit=12)
+            ctx["search_results"] = search_data["results"]
+            ctx["search_total"] = search_data["total"]
+            ctx["search_has_more"] = search_data["has_more"]
         return ctx
 
 
@@ -133,6 +145,13 @@ class PageDetailView(DetailView):
         if is_media_metadata(summary):
             summary = sanitize_summary_text(summary)
         ctx["page_summary"] = summary if summary and not is_media_metadata(summary) else ""
+        from apps.wiki.services.link_graph import get_backlinks
+
+        ctx["backlinks"] = get_backlinks(self.object.slug)
+        if self.request.user.is_staff:
+            from apps.wiki.services.broken_links import audit_page_links
+
+            ctx["link_audit"] = audit_page_links(self.object)
         return ctx
 
 
@@ -204,7 +223,21 @@ class SearchView(ListView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx["query"] = self.request.GET.get("q", "")
+        query = self.request.GET.get("q", "").strip()
+        ctx["query"] = query
+        if len(query) >= 2:
+            from apps.search.services import full_search_bundle
+
+            bundle = full_search_bundle(query)
+            ctx["search_categories"] = bundle["categories"]
+            ctx["search_tags"] = bundle["tags"]
+            ctx["search_links"] = bundle["links"]
+            ctx["search_total"] = bundle["total"]
+        else:
+            ctx["search_categories"] = []
+            ctx["search_tags"] = []
+            ctx["search_links"] = []
+            ctx["search_total"] = 0
         return ctx
 
 
@@ -225,11 +258,18 @@ class BookmarksView(LoginRequiredMixin, ListView):
 class ToggleBookmarkView(View):
     def post(self, request, slug):
         if not request.user.is_authenticated:
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                return JsonResponse({"error": "Authentication required"}, status=401)
             return redirect("account_login")
         page = get_object_or_404(WikiPage, slug=slug, status=WikiPage.Status.PUBLISHED)
         bookmark, created = Bookmark.objects.get_or_create(user=request.user, page=page)
         if not created:
             bookmark.delete()
+            bookmarked = False
+        else:
+            bookmarked = True
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return JsonResponse({"bookmarked": bookmarked, "slug": slug, "title": page.title})
         return redirect(page.get_absolute_url())
 
 
@@ -284,6 +324,53 @@ class LinkPreviewAPIView(View):
             return JsonResponse(fetch_link_preview(url))
         except Exception as exc:
             return JsonResponse({"error": str(exc)}, status=502)
+
+
+class LocalWikiPageAPIView(View):
+    """Resolve a Wikipedia URL to a local wiki page if one exists."""
+
+    def get(self, request):
+        from urllib.parse import unquote
+
+        from apps.wiki.services.wikilinks import (
+            WIKIPEDIA_ARTICLE_URL,
+            normalize_wiki_title,
+            resolve_wiki_slug,
+        )
+
+        url = request.GET.get("url", "").strip()
+        if not url:
+            return JsonResponse({"error": "url required"}, status=400)
+        match = WIKIPEDIA_ARTICLE_URL.match(url)
+        if not match:
+            return JsonResponse({"local": False})
+        title = normalize_wiki_title(unquote(match.group(2)))
+        slug = resolve_wiki_slug(title)
+        if not slug:
+            return JsonResponse({"local": False, "title": title})
+        page = WikiPage.objects.filter(slug=slug, status=WikiPage.Status.PUBLISHED).first()
+        if not page:
+            return JsonResponse({"local": False, "title": title})
+        return JsonResponse(
+            {
+                "local": True,
+                "slug": page.slug,
+                "title": page.title,
+                "url": page.get_absolute_url(),
+            }
+        )
+
+
+class PageLinkAuditView(LoginRequiredMixin, View):
+    """Staff-only JSON link audit for a wiki page."""
+
+    def get(self, request, slug):
+        if not request.user.is_staff:
+            return JsonResponse({"error": "Forbidden"}, status=403)
+        page = get_object_or_404(WikiPage, slug=slug)
+        from apps.wiki.services.broken_links import audit_page_links
+
+        return JsonResponse(audit_page_links(page))
 
 
 class SharedLinkPreviewView(DetailView):

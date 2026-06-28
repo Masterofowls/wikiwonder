@@ -1,0 +1,21 @@
+{% load wiki_tags %}
+{# Shared instant-search dropdown — expects Alpine scope: query, results, open, loading, hasMore, total, fullSearchUrl #}
+<div x-show="open && query.trim().length >= 2" x-cloak class="search-typeahead absolute top-full left-0 right-0 z-50 mt-1 rounded-lg border border-border bg-popover shadow-lg overflow-hidden">
+  <div x-show="loading" class="px-3 py-2 text-sm text-muted-foreground">Searching…</div>
+  <template x-if="!loading && results.length === 0">
+    <p class="px-3 py-2 text-sm text-muted-foreground">No results found</p>
+  </template>
+  <template x-for="item in results" :key="item.url + item.type">
+    <a :href="item.url" class="search-typeahead__item flex flex-col gap-0.5 px-3 py-2 hover:bg-accent transition-colors border-b border-border/50 last:border-0">
+      <span class="flex items-center gap-2 text-sm font-medium min-w-0">
+        <span class="search-typeahead__badge" x-text="typeLabel(item.type)"></span>
+        <span class="truncate" x-text="item.title"></span>
+      </span>
+      <span class="text-xs text-muted-foreground line-clamp-1" x-text="item.meta || item.category || item.snippet"></span>
+    </a>
+  </template>
+  <a x-show="hasMore" :href="fullSearchUrl + '?q=' + encodeURIComponent(query)"
+    class="block px-3 py-2 text-xs font-medium text-primary hover:bg-accent text-center border-t border-border">
+    Show all results (<span x-text="total"></span>)
+  </a>
+</div>
