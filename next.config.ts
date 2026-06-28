@@ -2,11 +2,13 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
-  experimental: {
-    serverActions: {
-      bodySizeLimit: "10mb",
-    },
+
+  // Turbopack configuration (top-level, stable in Next.js 15)
+  turbopack: {
+    // Custom loader rules can go here if needed
+    rules: {},
   },
+
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "upload.wikimedia.org" },
@@ -15,6 +17,7 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "*.supabase.co" },
     ],
   },
+
   async headers() {
     return [
       {
@@ -26,6 +29,7 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+
   async rewrites() {
     return [
       { source: "/robots.txt", destination: "/api/robots" },

@@ -59,7 +59,7 @@ jobs:
           DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/wikiwonder"
           DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/wikiwonder"
 
-      - name: Build Next.js app
+      - name: Build Next.js app (Turbopack)
         run: npm run build
         env:
           DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/wikiwonder"
