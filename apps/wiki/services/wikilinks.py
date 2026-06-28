@@ -1,13 +1,27 @@
-"""Internal wiki page links: [[Title]] syntax and auto-linking."""
+"""Internal wiki page links: [[Title]] syntax, auto-linking, and URL resolution."""
 from __future__ import annotations
 
 import re
+from urllib.parse import quote, unquote
 
 from django.utils.text import slugify
 
 WIKILINK = re.compile(r"\[\[([^\]|]+)(?:\|([^\]]+))?\]\]")
-MARKDOWN_LINK = re.compile(r"!?\[[^\]]*\]\([^)]*\)")
+MARKDOWN_LINK = re.compile(r"(?<!!)\[([^\]]*)\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)")
 CODE_FENCE = re.compile(r"```[\s\S]*?```|`[^`]+`")
+WIKIPEDIA_ARTICLE_URL = re.compile(
+    r"^https?://([a-z]{2,3})\.wikipedia\.org/wiki/([^?#]+)",
+    re.I,
+)
+RELATIVE_WIKI_PATH = re.compile(r"^/wiki/([^?#]+)/?$", re.I)
+BROKEN_NESTED_LINK = re.compile(
+    r"\(\[(https?://[^\]]+)\]\((https?://[^)]+)\)\)",
+)
+
+
+def repair_broken_nested_links(text: str) -> str:
+    """Fix nested links created when highlight_urls wrapped URLs inside markdown targets."""
+    return BROKEN_NESTED_LINK.sub(r"(\2)", text)
 
 
 def get_published_wiki_index() -> list[tuple[str, str]]:
@@ -21,16 +35,40 @@ def get_published_wiki_index() -> list[tuple[str, str]]:
     return pages
 
 
+def normalize_wiki_title(title: str) -> str:
+    """Normalize Wikipedia/local title for matching (strip parentheticals)."""
+    clean = unquote(title.replace("_", " ")).strip()
+    clean = re.sub(r"\s*\([^)]*\)\s*$", "", clean).strip()
+    return clean
+
+
 def resolve_wiki_slug(title: str, index: list[tuple[str, str]] | None = None) -> str | None:
     """Resolve page title or slug fragment to a published slug."""
-    needle = title.strip().lower()
-    if not needle:
+    raw = title.strip()
+    if not raw:
         return None
+    needle = raw.lower()
+    normalized = normalize_wiki_title(raw).lower()
     index = index or get_published_wiki_index()
     for page_title, slug in index:
-        if page_title.lower() == needle or slug == slugify(title):
+        page_lower = page_title.lower()
+        page_norm = normalize_wiki_title(page_title).lower()
+        if needle in {page_lower, page_norm, slug}:
+            return slug
+        if normalized and normalized in {page_lower, page_norm}:
+            return slug
+        if slug == slugify(raw) or slug == slugify(normalized):
             return slug
     return None
+
+
+def _local_wiki_href(slug: str) -> str:
+    return f"/wiki/{slug}/"
+
+
+def _wikipedia_href(lang: str, title: str) -> str:
+    encoded = quote(title.replace(" ", "_"), safe="()")
+    return f"https://{lang}.wikipedia.org/wiki/{encoded}"
 
 
 def process_wikilink_syntax(text: str, index: list[tuple[str, str]] | None = None) -> str:
@@ -41,11 +79,56 @@ def process_wikilink_syntax(text: str, index: list[tuple[str, str]] | None = Non
         target = match.group(1).strip()
         label = (match.group(2) or target).strip()
         slug = resolve_wiki_slug(target, index)
-        if not slug:
-            return label
-        return f"[{label}](/wiki/{slug}/)"
+        if slug:
+            return f"[{label}]({_local_wiki_href(slug)})"
+        lang_match = re.match(r"^([a-z]{2}):(.+)$", target, re.I)
+        if lang_match:
+            lang, wp_title = lang_match.group(1), lang_match.group(2).strip()
+            return f"[{label}]({_wikipedia_href(lang, wp_title)})"
+        return f"[{label}]({_wikipedia_href('en', target)})"
 
     return WIKILINK.sub(repl, text)
+
+
+def resolve_markdown_links(text: str, *, exclude_slug: str = "") -> str:
+    """
+    Rewrite markdown link targets:
+    - Wikipedia article URLs → local /wiki/slug/ when page exists
+    - Relative /wiki/Title paths → local slug or valid Wikipedia URL
+    - Repair nested links broken by highlight_urls
+    """
+    text = repair_broken_nested_links(text)
+    index = get_published_wiki_index()
+
+    def repl(match: re.Match) -> str:
+        label, url = match.group(1), match.group(2).strip()
+
+        if url.startswith("#") or url.startswith("/media/"):
+            return match.group(0)
+
+        wp = WIKIPEDIA_ARTICLE_URL.match(url)
+        if wp:
+            lang, wp_title = wp.group(1), unquote(wp.group(2))
+            title = normalize_wiki_title(wp_title)
+            slug = resolve_wiki_slug(title, index)
+            if slug and slug != exclude_slug:
+                return f"[{label}]({_local_wiki_href(slug)})"
+            return f"[{label}]({_wikipedia_href(lang, title or wp_title)})"
+
+        rel = RELATIVE_WIKI_PATH.match(url)
+        if rel:
+            fragment = unquote(rel.group(1))
+            title = normalize_wiki_title(fragment)
+            slug = resolve_wiki_slug(title, index)
+            if slug and slug != exclude_slug:
+                return f"[{label}]({_local_wiki_href(slug)})"
+            if "_" in fragment or slugify(fragment) != fragment.lower().replace("_", "-"):
+                return f"[{label}]({_wikipedia_href('en', title or fragment)})"
+            return match.group(0)
+
+        return match.group(0)
+
+    return MARKDOWN_LINK.sub(repl, text)
 
 
 def _split_protected(text: str) -> list[tuple[str, bool]]:
@@ -82,12 +165,35 @@ def linkify_internal_pages(text: str, *, exclude_slug: str = "") -> str:
                 continue
             pattern = re.compile(rf"(?<!\[)\b({re.escape(title)})\b(?!\])", re.IGNORECASE)
             if not pattern.search(updated):
-                continue
+                norm_title = normalize_wiki_title(title)
+                if norm_title and norm_title != title:
+                    pattern = re.compile(
+                        rf"(?<!\[)\b({re.escape(norm_title)})\b(?!\])",
+                        re.IGNORECASE,
+                    )
+                    if not pattern.search(updated):
+                        continue
+                else:
+                    continue
 
             def link_repl(m: re.Match, _slug=slug) -> str:
-                return f"[{m.group(1)}](/wiki/{_slug}/)"
+                return f"[{m.group(1)}]({_local_wiki_href(_slug)})"
 
             updated = pattern.sub(link_repl, updated, count=1)
             linked_slugs.add(slug)
         out.append(updated)
     return "".join(out)
+
+
+def process_all_wiki_links(text: str, *, exclude_slug: str = "") -> str:
+    """Full link pipeline for import and render."""
+    if not text:
+        return text
+    text = repair_broken_nested_links(text)
+    if "[[" in text:
+        text = process_wikilink_syntax(text)
+    if "](/wiki/" in text or "wikipedia.org/wiki/" in text or "[[" in text:
+        text = resolve_markdown_links(text, exclude_slug=exclude_slug)
+    if get_published_wiki_index():
+        text = linkify_internal_pages(text, exclude_slug=exclude_slug)
+    return text

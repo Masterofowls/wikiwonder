@@ -8,7 +8,7 @@ from apps.wiki.services.citations import replace_numeric_citations
 from apps.wiki.services.markdown import render_markdown
 from apps.wiki.services.pages import create_page_from_markdown
 from apps.wiki.services.wikipedia_paste import is_wikipedia_paste, normalize_wikipedia_paste
-from apps.wiki.services.wikilinks import linkify_internal_pages, process_wikilink_syntax
+from apps.wiki.services.wikilinks import linkify_internal_pages, process_wikilink_syntax, resolve_markdown_links
 
 User = get_user_model()
 
@@ -40,7 +40,10 @@ class TestWikipediaPaste:
 
     def test_hatnote_becomes_wikilink(self):
         result = normalize_wikipedia_paste(XSS_SNIPPET)
-        assert "[[Web security]]" in result["markdown"] or "[[Same-origin policy]]" in result["markdown"]
+        md = result["markdown"]
+        assert "> **Main article:**" in md
+        assert "Web security" in md
+        assert "Same-origin policy" in md
 
 
 @pytest.mark.django_db
@@ -87,3 +90,38 @@ class TestWikipediaPasteAPI:
         data = response.json()
         assert data["citation_count"] >= 2
         assert "[1][cite-1]" in data["markdown"]
+
+
+@pytest.mark.django_db
+class TestSameOriginPolicyPaste:
+    @pytest.fixture
+    def sop_paste(self):
+        from pathlib import Path
+
+        return Path(__file__).parent.joinpath("fixtures", "sop_paste.txt").read_text(encoding="utf-8")
+
+    def test_html_br_and_introduction_labels(self, sop_paste):
+        result = normalize_wikipedia_paste(
+            sop_paste,
+            source_url="https://en.wikipedia.org/wiki/Same-origin_policy",
+        )
+        md = result["markdown"]
+        assert result["title"] == "Same-origin policy"
+        assert "<br" not in md
+        assert md.startswith("# Same-origin policy")
+        assert "In computing, the same-origin policy" in md
+        assert "Introduction\nIntroduction" not in md
+
+    def test_sections_table_and_hatnote(self, sop_paste):
+        result = normalize_wikipedia_paste(
+            sop_paste,
+            source_url="https://en.wikipedia.org/wiki/Same-origin_policy",
+        )
+        md = result["markdown"]
+        assert "## History" in md
+        assert "## Implementation" in md
+        assert "| Compared URL | Outcome | Reason |" in md
+        assert "> **Main article:**" in md
+        assert "JSONP" in md
+        assert "`<script>`" in md
+        assert "[1][cite-1]" in md

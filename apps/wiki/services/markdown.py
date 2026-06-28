@@ -14,7 +14,7 @@ from apps.wiki.services.media_links import (
     replace_media_anchors,
     wrap_standalone_media_images,
 )
-from apps.wiki.services.wikilinks import linkify_internal_pages, process_wikilink_syntax
+from apps.wiki.services.wikilinks import process_all_wiki_links
 
 ALLOWED_TAGS = bleach.sanitizer.ALLOWED_TAGS | {
     "h1", "h2", "h3", "h4", "h5", "h6",
@@ -87,10 +87,7 @@ def render_markdown(text: str, *, page_slug: str = "") -> str:
     if not text:
         return ""
     text = normalize_media_markdown(text)
-    if "[[" in text:
-        text = process_wikilink_syntax(text)
-    if page_slug or "[[" in text:
-        text = linkify_internal_pages(text, exclude_slug=page_slug)
+    text = process_all_wiki_links(text, exclude_slug=page_slug)
     text = promote_media_links_markdown(text)
     text = promote_bare_media_urls(text)
     text = highlight_urls(text)

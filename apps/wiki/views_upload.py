@@ -60,3 +60,48 @@ class WikipediaPasteView(LoginRequiredMixin, View):
 
         result = normalize_wikipedia_paste(text, source_url=source_url)
         return JsonResponse(result)
+
+
+class WikipediaUrlImportView(LoginRequiredMixin, View):
+    """POST JSON { url, download_media? } → formatted wiki markdown from Wikipedia."""
+
+    def post(self, request):
+        try:
+            payload = json.loads(request.body.decode() or "{}")
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+        url = (payload.get("url") or "").strip()
+        download_media = bool(payload.get("download_media"))
+        if not url:
+            return JsonResponse({"error": "url is required"}, status=400)
+
+        from apps.imports.sources.detect import wikipedia_page_title
+        from apps.imports.sources.fetch import FetchError
+        from apps.imports.url_import import preview_url_import
+
+        if not wikipedia_page_title(url):
+            return JsonResponse({"error": "Not a valid Wikipedia article URL"}, status=400)
+
+        try:
+            preview = preview_url_import(
+                url,
+                source_type="wikipedia",
+                download_media=download_media,
+                user=request.user,
+            )
+        except FetchError as exc:
+            return JsonResponse({"error": str(exc)}, status=400)
+
+        return JsonResponse(
+            {
+                "title": preview["title"],
+                "markdown": preview["markdown"],
+                "summary": preview.get("summary", ""),
+                "section_count": preview.get("section_count", 0),
+                "media_count": preview.get("meta", {}).get("media_count", 0),
+                "citation_count": preview.get("meta", {}).get("citation_count", 0),
+                "source_url": preview["source_url"],
+                "meta": preview.get("meta", {}),
+            }
+        )

@@ -23,7 +23,12 @@
   const wikiPasteBtn = document.getElementById('wikipedia-paste-btn');
   const wikiPasteStatus = document.getElementById('wikipedia-paste-status');
   const wikiSourceUrl = document.getElementById('wikipedia_source_url');
+  const wikiImportBtn = document.getElementById('wikipedia-import-btn');
+  const wikiImportStatus = document.getElementById('wikipedia-import-status');
+  const wikiUrlInput = document.getElementById('wikipedia_url');
+  const wikiDownloadMedia = document.getElementById('wikipedia_download_media');
   const wikiPasteUrl = cfg.pasteWikipediaUrl || '/wiki/api/paste-wikipedia/';
+  const wikiImportUrl = cfg.importWikipediaUrl || '/wiki/api/import-wikipedia/';
   const videoInput = document.getElementById('editor-video-input');
   const audioInput = document.getElementById('editor-audio-input');
   const imageInput = document.getElementById('editor-image-input');
@@ -130,6 +135,48 @@
     }
   }
 
+  async function importWikipediaUrl() {
+    const url = wikiUrlInput?.value?.trim();
+    if (!url) {
+      setStatus(wikiImportStatus, 'Enter a Wikipedia article URL.', true);
+      return;
+    }
+    if (wikiImportBtn) wikiImportBtn.disabled = true;
+    setStatus(wikiImportStatus, 'Fetching and formatting from Wikipedia…');
+
+    try {
+      const res = await fetch(wikiImportUrl, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCsrfToken(),
+        },
+        body: JSON.stringify({
+          url,
+          download_media: Boolean(wikiDownloadMedia?.checked),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Wikipedia import failed');
+      setContentValue(data.markdown || '');
+      if (titleInput && data.title && !titleInput.value.trim()) {
+        titleInput.value = data.title;
+      }
+      if (summaryInput && data.summary && !summaryInput.value.trim()) {
+        summaryInput.value = data.summary;
+      }
+      setStatus(
+        wikiImportStatus,
+        `Imported “${data.title}” — ${data.section_count || 0} sections, ${data.media_count || 0} media, ${data.citation_count || 0} citations.`,
+      );
+    } catch (err) {
+      setStatus(wikiImportStatus, err.message || 'Could not import from Wikipedia', true);
+    } finally {
+      if (wikiImportBtn) wikiImportBtn.disabled = false;
+    }
+  }
+
   if (textarea && window.EasyMDE) {
     editor = new EasyMDE({
       element: textarea,
@@ -177,6 +224,12 @@
             action: () => pdfInput?.click(),
             className: 'editor-tool-pdf',
             title: 'Upload PDF',
+          },
+          {
+            name: 'wikipedia-import',
+            action: () => importWikipediaUrl(),
+            className: 'editor-tool-wikipedia-import',
+            title: 'Import from Wikipedia URL',
           },
           {
             name: 'wikipedia-paste',
@@ -277,6 +330,7 @@
   aiBtn?.addEventListener('click', formatWithAI);
 
   wikiPasteBtn?.addEventListener('click', () => formatWikipediaPaste());
+  wikiImportBtn?.addEventListener('click', () => importWikipediaUrl());
 
   document.addEventListener('paste', (e) => {
     const items = e.clipboardData?.items;

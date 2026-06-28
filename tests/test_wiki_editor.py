@@ -46,11 +46,19 @@ class TestEditorUpload:
 
 
 class TestHighlightUrls:
+    @pytest.mark.django_db
     def test_bare_url_becomes_markdown_link(self):
         text = "See https://example.com/docs for more."
         result = highlight_urls(text)
         assert "[https://example.com/docs](https://example.com/docs)" in result
 
+    @pytest.mark.django_db
+    def test_does_not_break_existing_markdown_links(self):
+        text = "[Cross-site scripting (XSS)](https://en.wikipedia.org/wiki/Cross-site_scripting)"
+        result = highlight_urls(text)
+        assert result == text
+
+    @pytest.mark.django_db
     def test_rendered_html_has_preview_classes(self):
         html = render_markdown("Visit https://example.com today.")
         assert "wiki-url-highlight" in html

@@ -78,6 +78,7 @@ REF_DEF_LINE = re.compile(r"^\[[^\]]+\]:\s")
 def highlight_urls(text: str) -> str:
     """Turn bare URLs in markdown into clickable links before rendering."""
     from apps.wiki.services.media_links import _wiki_embed, media_kind
+    from apps.wiki.services.wikilinks import _split_protected
 
     def repl(match: re.Match) -> str:
         url = match.group(1).rstrip(".,);]")
@@ -87,10 +88,16 @@ def highlight_urls(text: str) -> str:
             return _wiki_embed(kind, url, url) + suffix
         return f"[{url}]({url}){suffix}"
 
-    lines: list[str] = []
-    for line in text.splitlines():
-        if REF_DEF_LINE.match(line.strip()):
-            lines.append(line)
-        else:
-            lines.append(URL_IN_TEXT.sub(repl, line))
-    return "\n".join(lines)
+    out: list[str] = []
+    for chunk, protected in _split_protected(text):
+        if protected:
+            out.append(chunk)
+            continue
+        lines: list[str] = []
+        for line in chunk.splitlines():
+            if REF_DEF_LINE.match(line.strip()):
+                lines.append(line)
+            else:
+                lines.append(URL_IN_TEXT.sub(repl, line))
+        out.append("\n".join(lines))
+    return "".join(out)

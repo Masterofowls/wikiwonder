@@ -31,6 +31,7 @@ class ImportFromUrlView(LoginRequiredMixin, TemplateView):
         source_type = request.POST.get("source_type", "auto")
         use_ai = request.POST.get("use_ai") == "on"
         publish = request.POST.get("publish") == "on"
+        download_media = request.POST.get("download_media") == "on"
         title_override = request.POST.get("title", "").strip()
 
         if not url:
@@ -39,7 +40,13 @@ class ImportFromUrlView(LoginRequiredMixin, TemplateView):
 
         if action == "preview":
             try:
-                preview = preview_url_import(url, source_type=source_type, use_ai=use_ai)
+                preview = preview_url_import(
+                    url,
+                    source_type=source_type,
+                    use_ai=use_ai,
+                    download_media=download_media,
+                    user=request.user,
+                )
             except FetchError as exc:
                 messages.error(request, str(exc))
                 return redirect("wiki:import_url")
@@ -52,6 +59,7 @@ class ImportFromUrlView(LoginRequiredMixin, TemplateView):
                     "form_source_type": source_type,
                     "form_use_ai": use_ai,
                     "form_publish": publish,
+                    "form_download_media": download_media,
                     "form_title": title_override or preview["title"],
                 }
             )
@@ -65,6 +73,7 @@ class ImportFromUrlView(LoginRequiredMixin, TemplateView):
                 source_type=source_type,
                 use_ai=use_ai,
                 publish=publish,
+                download_media=download_media,
             )
         except FetchError as exc:
             messages.error(request, str(exc))

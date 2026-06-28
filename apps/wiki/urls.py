@@ -30,6 +30,7 @@ urlpatterns = [
     path("wiki/import/", views_import.ImportFromUrlView.as_view(), name="import_url"),
     path("wiki/api/upload/", views_upload.EditorMediaUploadView.as_view(), name="editor_upload"),
     path("wiki/api/paste-wikipedia/", views_upload.WikipediaPasteView.as_view(), name="paste_wikipedia"),
+    path("wiki/api/import-wikipedia/", views_upload.WikipediaUrlImportView.as_view(), name="import_wikipedia"),
     path("wiki/api/blocks/<int:block_id>/annotate/", views_annotations.BlockAnnotationCreateView.as_view(), name="block_annotate"),
     path("wiki/<slug:slug>/edit/", views_edit.EditWikiPageView.as_view(), name="edit_page"),
     path("wiki/<slug:slug>/translate/", views_translate.GenerateTranslationView.as_view(), name="generate_translation"),

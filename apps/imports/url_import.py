@@ -2,7 +2,12 @@
 from __future__ import annotations
 
 from apps.ai.services import get_ai_service
-from apps.imports.sources import SOURCE_AUTO, fetch_from_url, list_supported_sources
+from apps.imports.sources import (
+    SOURCE_AUTO,
+    SOURCE_WIKIPEDIA,
+    fetch_from_url,
+    list_supported_sources,
+)
 from apps.wiki.models import WikiPage
 from apps.wiki.services.markdown import extract_summary, split_markdown_into_sections
 from apps.wiki.services.pages import create_page_from_markdown
@@ -14,9 +19,21 @@ def preview_url_import(
     source_type: str = SOURCE_AUTO,
     use_ai: bool = False,
     max_feed_entries: int = 25,
+    download_media: bool = False,
+    user=None,
 ) -> dict:
     """Fetch URL content and return preview payload without saving."""
-    fetched = fetch_from_url(url, source_type=source_type, max_feed_entries=max_feed_entries)
+    from apps.imports.sources.detect import detect_source_type
+    from apps.imports.sources.wikipedia import fetch_wikipedia
+
+    url = (url or "").strip()
+    resolved = source_type if source_type != SOURCE_AUTO else detect_source_type(url)
+    user_id = getattr(user, "pk", None)
+
+    if resolved == SOURCE_WIKIPEDIA:
+        fetched = fetch_wikipedia(url, download_media=download_media, user_id=user_id)
+    else:
+        fetched = fetch_from_url(url, source_type=source_type, max_feed_entries=max_feed_entries)
     markdown = fetched["markdown"]
     title = fetched["title"]
     service = get_ai_service()
@@ -55,6 +72,7 @@ def import_url_as_wiki_page(
     use_ai: bool = False,
     publish: bool = False,
     max_feed_entries: int = 25,
+    download_media: bool = False,
 ) -> WikiPage:
     """Fetch remote content and create a wiki page."""
     preview = preview_url_import(
@@ -62,6 +80,8 @@ def import_url_as_wiki_page(
         source_type=source_type,
         use_ai=use_ai,
         max_feed_entries=max_feed_entries,
+        download_media=download_media,
+        user=author,
     )
     resolved_title = title or preview["title"]
     status = WikiPage.Status.PUBLISHED if publish else WikiPage.Status.DRAFT

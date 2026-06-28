@@ -14,8 +14,8 @@
   <header class="mb-8">
     <h1 class="font-display text-3xl font-semibold tracking-tight">Import from URL</h1>
     <p class="mt-2 text-muted-foreground">
-      Pull content from Wikipedia, other wikis, documentation sites, RSS feeds, or any public web page
-      and convert it into formatted wiki markdown with sections.
+      Pull content from Wikipedia (native formatting: sections, citations, tables, images, wikilinks),
+      other wikis, documentation sites, RSS feeds, or any public web page.
     </p>
   </header>
 
@@ -69,6 +69,10 @@
           {% if form_use_ai %}checked{% endif %} {% if not ai_configured %}disabled{% endif %}>
         Polish with AI
       </label>
+      <label class="inline-flex items-center gap-2">
+        <input type="checkbox" name="download_media" class="rounded border-input" {% if form_download_media %}checked{% endif %}>
+        Mirror Wikipedia media locally
+      </label>
     </div>
 
     <div class="flex flex-wrap gap-2">
@@ -85,6 +89,7 @@
         <h2 id="preview-heading" class="font-semibold">{{ preview.title }}</h2>
         <p class="text-xs text-muted-foreground mt-0.5">
           {{ preview.source_label }} · {{ preview.section_count }} sections
+          {% if preview.meta.media_count %} · {{ preview.meta.media_count }} media{% endif %}
           {% if preview.ai_used %} · AI polished{% endif %}
         </p>
       </div>

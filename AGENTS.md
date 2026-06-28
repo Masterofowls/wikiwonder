@@ -1,7 +1,7 @@
 ## Learned User Preferences
 
-- Build a self-hosted Wikipedia-style platform with automation, CMS, admin, RSS, adaptive design, PWA, offline mode, bookmarks, content previews, and text-to-markdown wiki import split by sections.
-- Preferred stack: Django, uv, Ruff, Docker, nginx, Let's Encrypt, Fly.io, and Cerebras AI (`gpt-oss-120b`) for formatting/import.
+- Build a self-hosted Wikipedia-style platform with automation, CMS, admin, RSS, adaptive design, PWA, offline mode, bookmarks, content previews, text-to-markdown wiki import split by sections, URL import from Wikipedia/MediaWiki/RSS/docs, and Wikipedia paste with citations and wikilinks.
+- Preferred stack: Django, uv, Ruff, Docker, nginx, Let's Encrypt, Fly.io, Cerebras AI (`gpt-oss-120b`) for formatting/import, and Lara Translate for EN→RU page translation.
 - Use shadcn-style UI in Django via `django-cotton` and `shadcn_django` — not a React SPA.
 - Expect rich UI polish: smooth transitions, tabs, image cards, scrollers, Lucide icons, custom fonts, link previews, and Notion-like page layout.
 - Prefer front-end wiki authoring at `/wiki/new/` and `/wiki/<slug>/edit/` with markdown editor and inline media uploads — not admin-only flows.
@@ -9,6 +9,7 @@
 - Follow installed skills when implementing features.
 - Run local dev on port 9000.
 - Deploy to Fly.io as a new app when asked (`fly launch` / `fly deploy`).
+- Languages limited to English (primary) and Russian; expect automatic Russian page generation when Lara Translate is configured.
 
 ## Learned Workspace Facts
 
@@ -20,6 +21,6 @@
 - CI (`.github/workflows/django.yml`) runs `uv sync`, `uv run ruff check .`, and `uv run pytest` with `config.settings_test` (in-memory SQLite).
 - PWA service worker (sw v4) caches `/media/` so offline bookmarked pages keep cover images.
 - Database: Supabase Postgres in production (`DATABASE_URL` with URL-encoded password); local SQLite fallback is `sqlite:///db.sqlite3`.
-- AI integration reads `CEREBRAS_API_KEY` and `CEREBRAS_MODEL` (default `gpt-oss-120b`) from environment — never commit keys.
-- Production is on Fly.io: app `wikiwonder`, region `iad`, URL https://wikiwonder.fly.dev, media volume `wikiwonder_media` at `/app/media`.
-- Health check endpoint: `/health/`; `fly.toml` uses a 180s grace period to tolerate long first-boot migrations.
+- Cerebras and Lara Translate read `CEREBRAS_API_KEY`, `CEREBRAS_MODEL` (default `gpt-oss-120b`), `LARA_ACCESS_KEY_ID`, and `LARA_ACCESS_KEY_SECRET` from environment — never commit keys.
+- Production on Fly.io: app `wikiwonder`, region `iad`, https://wikiwonder.fly.dev, media volume `wikiwonder_media` at `/app/media`; `/health/` with 180s grace for first-boot migrations.
+- i18n is en+ru only (`LANGUAGES`, modeltranslation); URL import at `/wiki/import/`; manual translation at `/wiki/<slug>/translate/`.

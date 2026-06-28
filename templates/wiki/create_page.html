@@ -92,17 +92,34 @@
             Format plain text with AI before saving
           </label>
           <div>
-            <label for="wikipedia_source_url" class="text-sm font-medium">Wikipedia source URL (optional)</label>
-            <input id="wikipedia_source_url" type="url" placeholder="https://en.wikipedia.org/wiki/..."
+            <label for="wikipedia_url" class="text-sm font-medium">Import from Wikipedia URL</label>
+            <input id="wikipedia_url" type="url" placeholder="https://en.wikipedia.org/wiki/Same-origin_policy"
               class="mt-1 notion-field-input">
             <p class="text-xs text-muted-foreground mt-1">
-              Paste article text, add the Wikipedia URL for citation links, then click Format Wikipedia.
+              Fetches the article via Wikipedia API — sections, citations, tables, images, and wikilinks formatted automatically.
             </p>
           </div>
-          <c-button type="button" variant="secondary" size="sm" id="wikipedia-paste-btn">
-            {% lucide "languages" size=14 %} Format Wikipedia paste
-          </c-button>
-          <p id="wikipedia-paste-status" class="notion-hint hidden" role="status"></p>
+          <div class="flex flex-wrap gap-2 items-center">
+            <c-button type="button" variant="secondary" size="sm" id="wikipedia-import-btn">
+              {% lucide "download" size=14 %} Import Wikipedia URL
+            </c-button>
+            <label class="inline-flex items-center gap-2 text-xs text-muted-foreground">
+              <input type="checkbox" id="wikipedia_download_media" class="rounded border-input">
+              Mirror media to wiki storage
+            </label>
+          </div>
+          <p id="wikipedia-import-status" class="notion-hint hidden" role="status"></p>
+          <details class="text-sm">
+            <summary class="cursor-pointer text-muted-foreground">Or paste article text manually</summary>
+            <div class="mt-2 space-y-2">
+              <input id="wikipedia_source_url" type="url" placeholder="Optional: Wikipedia URL for citation links"
+                class="notion-field-input">
+              <c-button type="button" variant="ghost" size="sm" id="wikipedia-paste-btn">
+                {% lucide "languages" size=14 %} Format pasted text
+              </c-button>
+              <p id="wikipedia-paste-status" class="notion-hint hidden" role="status"></p>
+            </div>
+          </details>
           <div>
             <label for="document" class="text-sm font-medium">Import document</label>
             <input id="document" name="document" type="file"
@@ -147,6 +164,7 @@
   window.WIKI_CREATE = {
     uploadUrl: "{% url 'wiki:editor_upload' %}",
     pasteWikipediaUrl: "{% url 'wiki:paste_wikipedia' %}",
+    importWikipediaUrl: "{% url 'wiki:import_wikipedia' %}",
   };
 </script>
 <script src="{% static 'js/create-wiki.js' %}"></script>

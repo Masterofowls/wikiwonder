@@ -1,0 +1,23 @@
+Introduction
+Introduction
+n computing, the same-origin policy (SOP) is a concept in the web application security model. Under the policy, a web browser permits scripts contained in a first web page to access data in a second web page, but only if both web pages have the same origin. An origin is defined as a combination of URI scheme, host name, and port number. This policy prevents a malicious script on one page from obtaining access to sensitive data on another web page through that page's Document Object Model (DOM).
+
+This mechanism bears a particular significance for modern web applications that extensively depend on HTTPS cookies to maintain authenticated user sessions, as servers act based on the HTTP cookie information to reveal sensitive information or perform state-changing actions. A strict separation between content provided by unrelated sites must be maintained on the client-side to prevent the loss of data confidentiality or integrity.
+
+The same-origin policy applies only to scripts. This means that resources such as images, CSS, and dynamically loaded scripts can be accessed across origins via the corresponding HTML tags (with fonts being a notable exception). Attacks take advantage of the fact that the same origin policy does not apply to HTML tags.
+
+There are some mechanisms available to relax the SOP; one of them is cross-origin resource sharing (CORS).
+
+History<br /> The concept of same-origin policy was introduced by Netscape Navigator 2.02 in 1995,[1] shortly after the introduction of JavaScript in Netscape 2.0.[2][3] JavaScript enabled scripting on web pages, and in particular programmatic access to the DOM.
+
+The policy was originally designed to protect access to the DOM, but has since been broadened to protect sensitive parts of the global JavaScript object.
+
+Implementation<br /> All modern browsers implement some form of the same-origin policy as it is an important security cornerstone.[4] The policies are not required to match an exact specification[5] but are often extended to define roughly compatible security boundaries for other web technologies, such as Microsoft Silverlight, Adobe Flash, or Adobe Acrobat, or for mechanisms other than direct DOM manipulation, such as XMLHttpRequest.
+
+Origin determination rules<br /> The algorithm used to calculate the "origin" of a URI is specified in RFC 6454, Section 4. For absolute URIs, the origin is the triple {scheme, host, port}. If the URI does not use a hierarchical element as a naming authority (see RFC 3986, Section 3.2) or if the URI is not an absolute URI, then a globally unique identifier is used. Two resources are considered to be of the same origin if and only if all these values are exactly the same.
+
+To illustrate, the following table gives an overview of typical outcomes for checks against the URL "http://www.example.com/dir/page.html".
+
+Compared URL Outcome Reason<br /> http://www.example.com/dir/page2.html Success Same scheme, host and port<br /> http://www.example.com/dir2/other.html Success Same scheme, host and port<br /> http://username:password@www.example.com/dir2/other.html Success Same scheme, host and port<br /> http://www.example.com:80/dir/other.html Success Most modern browsers implicitly assign the protocol's default port when omitted.[6][7]<br /> http://www.example.com:81/dir/other.html Failure Same scheme and host but different port<br /> https://www.example.com/dir/other.html Failure Different scheme<br /> http://en.example.com/dir/other.html Failure Different host<br /> http://example.com/dir/other.html Failure Different host (exact match required)<br /> http://v2.www.example.com/dir/other.html Failure Different host (exact match required)<br /> data:image/gif;base64,R0lGODlhAQABAAAAACwAAAAAAQABAAA= Failure Different scheme<br /> Unlike other browsers, Internet Explorer does not include the port in the calculation of the origin, using the Security Zone in its place.[8]
+
+JSONP<br /> Main article: JSONP<br /> Since HTML <script> elements are allowed to retrieve and execute content from other domains, a page can bypass the same-origin policy and receive JSON data from a different domain by loading a resource that returns a JSONP payload. JSONP payloads consist of an internal JSON payload wrapped by a pre-defined function call. When the script resource is loaded by the browser, the designated callback function will be invoked to process the wrapped JSON payload.
