@@ -87,8 +87,10 @@ def render_markdown(text: str, *, page_slug: str = "") -> str:
     if not text:
         return ""
     text = normalize_media_markdown(text)
-    text = process_wikilink_syntax(text)
-    text = linkify_internal_pages(text, exclude_slug=page_slug)
+    if "[[" in text:
+        text = process_wikilink_syntax(text)
+    if page_slug or "[[" in text:
+        text = linkify_internal_pages(text, exclude_slug=page_slug)
     text = promote_media_links_markdown(text)
     text = promote_bare_media_urls(text)
     text = highlight_urls(text)
